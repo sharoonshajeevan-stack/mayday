@@ -31,7 +31,16 @@ kokoro>=0.9.4
 # Adds continuous listening, voice-activity detection, turn detection,
 # barge-in/interruption and streaming speech on top of the SAME Faster-Whisper,
 # Kokoro and Gemini/Ollama engines. Installed cleanly on CPU (no CUDA).
+#
+# Notes from installing this pinned version into the existing venv:
+#   * protobuf was downgraded 7.36.2 -> 6.33.6 (>=6.33,<7 required by pipecat)
+#   * loguru was replaced 0.8.0 -> 0.7.3 (pipecat pins <0.8)
+#   * transitive: aiofiles, soundfile, openai, pipecat-resampler
 pipecat-ai==1.16.0
+
+# The real-time control server (pipecat_voice/control_server.py) imports
+# aiohttp directly, so require it explicitly rather than relying on Pipecat.
+aiohttp>=3.9
 
 # --- System monitoring / screenshots ---------------------------------------
 psutil
