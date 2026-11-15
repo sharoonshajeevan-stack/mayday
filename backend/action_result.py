@@ -1,3 +1,6 @@
+from site_names import friendly_site_name
+
+
 def _describe(result):
     """Build a human-readable message for a routed action result."""
 
@@ -26,7 +29,7 @@ def _describe(result):
         return f"Done: {result['path']}"
 
     if result.get("url"):
-        return f"Opening {result['url']}"
+        return f"Opening {friendly_site_name(result['url'])}"
 
     return "Command completed."
 

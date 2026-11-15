@@ -1,0 +1,178 @@
+/* src/components/hud/Calendar.css */
+
+.mayday-calendar {
+  position: fixed;
+
+  left: 32px;
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  width: 186px;
+
+  padding: 12px 14px 14px;
+
+  z-index: 9994;
+
+  pointer-events: none;
+  user-select: none;
+
+  font-family:
+    "Courier New",
+    "Roboto Mono",
+    monospace;
+
+  color: rgba(235, 250, 255, 0.8);
+
+  background: rgba(0, 0, 0, 0.34);
+
+  border: 1px solid rgba(0, 191, 255, 0.16);
+
+  border-radius: 8px;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow:
+    0 0 18px rgba(0, 191, 255, 0.06),
+    inset 0 0 24px rgba(0, 191, 255, 0.03);
+}
+
+.mayday-calendar::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 14px;
+  right: 14px;
+
+  height: 1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 191, 255, 0.55),
+      rgba(0, 191, 255, 0.02)
+    );
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  margin-bottom: 9px;
+
+  font-size: 8px;
+
+  letter-spacing: 2px;
+
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.calendar-indicator {
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: #00bfff;
+
+  box-shadow: 0 0 8px rgba(0, 191, 255, 0.8);
+}
+
+.calendar-month {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  margin-bottom: 9px;
+
+  font-size: 11px;
+
+  letter-spacing: 1px;
+
+  color: rgba(190, 245, 255, 0.85);
+
+  text-shadow: 0 0 8px rgba(0, 191, 255, 0.18);
+}
+
+.calendar-year {
+  font-size: 9px;
+
+  letter-spacing: 1px;
+
+  color: rgba(210, 235, 245, 0.4);
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+
+  grid-template-columns: repeat(7, 1fr);
+
+  gap: 2px;
+
+  text-align: center;
+}
+
+.calendar-weekdays {
+  margin-bottom: 5px;
+
+  font-size: 7px;
+
+  letter-spacing: 1px;
+
+  color: rgba(210, 235, 245, 0.34);
+}
+
+.calendar-grid {
+  row-gap: 3px;
+}
+
+.calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 18px;
+
+  font-size: 9px;
+
+  color: rgba(235, 250, 255, 0.66);
+
+  border-radius: 3px;
+}
+
+.calendar-today {
+  color: #ff8a00;
+
+  background: rgba(255, 138, 0, 0.12);
+
+  border: 1px solid rgba(255, 138, 0, 0.45);
+
+  box-shadow: 0 0 10px rgba(255, 138, 0, 0.25);
+
+  text-shadow: 0 0 6px rgba(255, 138, 0, 0.5);
+}
+
+@media (max-width: 900px) {
+  .mayday-calendar {
+    width: 150px;
+
+    padding: 10px 11px 11px;
+  }
+
+  .calendar-day {
+    height: 15px;
+
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .mayday-calendar {
+    display: none;
+  }
+}

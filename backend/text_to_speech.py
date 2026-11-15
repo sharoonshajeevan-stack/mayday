@@ -83,6 +83,11 @@ class TextToSpeechEngine:
         self.voice = (os.getenv("KOKORO_VOICE", "af_heart") or "af_heart").strip()
         self.speed = _env_float("KOKORO_SPEED", 1.0)
         self.volume = 1.0
+        # Loudness: normalize every chunk up to `target_peak`, then apply an
+        # optional extra `gain`. This makes speech noticeably louder on quiet
+        # laptops without needing the system volume at maximum.
+        self.target_peak = _env_float("KOKORO_TARGET_PEAK", 0.97)
+        self.gain = _env_float("KOKORO_GAIN", 1.0)
         self.chunk_chars = _env_int("KOKORO_CHUNK_CHARS", 280)
 
         # pyttsx3-style rate (50-300). 150 == normal speed.
@@ -339,8 +344,7 @@ class TextToSpeechEngine:
                     if audio.size == 0:
                         continue
 
-                    if self.volume != 1.0:
-                        audio = audio * self.volume
+                    audio = self._apply_level(audio)
 
                     self._play_audio(audio)
                     played += 1
@@ -420,6 +424,26 @@ class TextToSpeechEngine:
                     os.remove(audio_file)
                 except OSError:
                     logger.warning("Could not remove online TTS temporary file")
+
+    def _apply_level(self, audio):
+        """Normalize a chunk to a loud, consistent level and apply user volume."""
+        audio = np.asarray(audio, dtype=np.float32)
+
+        if audio.size == 0:
+            return audio
+
+        peak = float(np.max(np.abs(audio)))
+
+        if peak > 0.0 and self.target_peak > 0.0:
+            audio = audio * (self.target_peak / peak)
+
+        if self.gain != 1.0:
+            audio = audio * self.gain
+
+        if self.volume != 1.0:
+            audio = audio * self.volume
+
+        return np.clip(audio, -1.0, 1.0)
 
     def _play_audio(self, audio):
         """Write one audio chunk to a temp WAV and play it on the speaker."""

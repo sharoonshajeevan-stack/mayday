@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useAIState } from "../../context/useAIState";
+import ResponseTyping from "./ResponseTyping";
 
 import "./ConversationFlow.css";
 
@@ -74,7 +75,12 @@ export default function ConversationFlow() {
             MAYDAY
           </div>
 
-          <p>{response}</p>
+          <p>
+            <ResponseTyping
+              text={response}
+              speed={18}
+            />
+          </p>
         </div>
       )}
     </div>

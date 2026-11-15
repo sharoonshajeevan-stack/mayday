@@ -5,6 +5,7 @@ import webbrowser
 from datetime import datetime
 from file_commands import open_folder, open_path
 from file_search import search_files
+from site_names import friendly_site_name
 from window_commands import (
     minimize_window,
     maximize_window,
@@ -147,7 +148,7 @@ def execute_open_url(url):
 
         return {
             "status": "success",
-            "message": f"Opening {url}",
+            "message": f"Opening {friendly_site_name(url)}",
             "url": url,
         }
 

@@ -4,12 +4,12 @@ import AIStatusIndicator from "./AIStatusIndicator";
 import HUDStatus from "./HUDStatus";
 import CommandPrompt from "./CommandPrompt";
 import CommandStatus from "./CommandStatus";
-import ResponsePanel from "./ResponsePanel";
 import VoiceActivity from "./VoiceActivity";
 import WakeWordIndicator from "./WakeWordIndicator";
 import VoiceControl from "./VoiceControl";
 import CommandHistory from "./CommandHistory";
 import SystemClock from "./SystemClock";
+import Calendar from "./Calendar";
 import ConnectionStatus from "./ConnectionStatus";
 import ThinkingIndicator from "./ThinkingIndicator";
 import ConversationFlow from "./ConversationFlow";
@@ -35,8 +35,6 @@ export default function HUD() {
 
       <ConversationFlow />
 
-      <ResponsePanel />
-
       <CommandStatus />
 
       <CommandPrompt />
@@ -54,6 +52,8 @@ export default function HUD() {
       {/* System */}
 
       <SystemClock />
+
+      <Calendar />
 
       <ConnectionStatus />
 
