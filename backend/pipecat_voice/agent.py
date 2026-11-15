@@ -36,6 +36,7 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 from pipecat_voice.events import STATE_ERROR, STATE_IDLE, STATE_LISTENING
 from pipecat_voice.llm_adapter import MaydayLLMService
+from pipecat_voice.mute import MuteProcessor
 from pipecat_voice.observer import VoiceStateObserver
 from pipecat_voice.stt_adapter import MaydayWhisperSTTService
 from pipecat_voice.tts_adapter import MaydayKokoroTTSService
@@ -62,6 +63,7 @@ class MaydayVoiceAgent:
 
         self._context = None
         self._user_aggregator = None
+        self._mute = MuteProcessor()
 
     # ------------------------------------------------------------------
     # Helpers
@@ -83,6 +85,7 @@ class MaydayVoiceAgent:
                 "input": self.config.audio_in_sample_rate,
                 "output": self.config.audio_out_sample_rate,
             },
+            "muted": self._mute.muted,
         }
 
     # ------------------------------------------------------------------
@@ -150,6 +153,7 @@ class MaydayVoiceAgent:
                 aggregators.user(),
                 llm,
                 tts,
+                self._mute,
                 transport.output(),
                 aggregators.assistant(),
             ]
@@ -250,6 +254,10 @@ class MaydayVoiceAgent:
             return False
         await worker.queue_frame(InterruptionFrame())
         return True
+
+    def set_muted(self, value):
+        """Silence (or restore) MAYDAY's spoken output without stopping."""
+        return self._mute.set_muted(value)
 
     async def send_text(self, text):
         """Inject a typed utterance as if it had been spoken."""

@@ -206,6 +206,19 @@
   color: #ff6b6b;
 }
 
+.realtime-voice-button.mute.on {
+  border-color: rgba(255, 215, 0, 0.6);
+  background: rgba(255, 215, 0, 0.08);
+  color: #ffd700;
+}
+
+.realtime-voice-muted-badge {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+
+  color: #ffd700;
+}
+
 /* =========================================================
    STATE COLOURS
    ========================================================= */

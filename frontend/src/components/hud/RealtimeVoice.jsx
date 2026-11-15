@@ -66,6 +66,7 @@ export default function RealtimeVoice() {
   const [statusLine, setStatusLine] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   const socketRef = useRef(null);
   const activeRef = useRef(false);
@@ -115,9 +116,16 @@ export default function RealtimeVoice() {
             setServiceUp(event.running);
             activeRef.current = event.running;
           }
+          if (typeof event.muted === "boolean") {
+            setMuted(event.muted);
+          }
           if (event.state && !event.running) {
             applyVoiceState("IDLE");
           }
+          break;
+
+        case "muted":
+          setMuted(Boolean(event.value));
           break;
 
         case "listening":
@@ -376,6 +384,14 @@ export default function RealtimeVoice() {
     }
   }, [applyVoiceState]);
 
+  const toggleMute = useCallback(() => {
+    const socket = socketRef.current;
+
+    if (socket && socket.isOpen()) {
+      socket.send("mute", { value: !muted });
+    }
+  }, [muted]);
+
   const reconnect = useCallback(() => {
     setError("");
     closeSocket();
@@ -421,7 +437,17 @@ export default function RealtimeVoice() {
           {STATE_LABEL[voiceState] || "IDLE"}
         </span>
 
-        {active && <span className="realtime-voice-mic" title="Microphone live">● MIC</span>}
+        {active && (
+          <span className="realtime-voice-mic" title="Microphone live">
+            ● MIC
+          </span>
+        )}
+
+        {active && muted && (
+          <span className="realtime-voice-muted-badge" title="Playback muted">
+            MUTED
+          </span>
+        )}
       </div>
 
       <div className="realtime-voice-transcript">
@@ -455,6 +481,17 @@ export default function RealtimeVoice() {
             onClick={interrupt}
           >
             STOP
+          </button>
+        )}
+
+        {active && (
+          <button
+            type="button"
+            className={`realtime-voice-button mute${muted ? " on" : ""}`}
+            onClick={toggleMute}
+            title="Silence MAYDAY's voice (listening stays on)"
+          >
+            {muted ? "UNMUTE" : "MUTE"}
           </button>
         )}
 

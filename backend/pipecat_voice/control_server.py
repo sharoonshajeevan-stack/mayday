@@ -117,6 +117,11 @@ class ControlServer:
                 await websocket.send_json({"type": "status", **self._agent.status()})
             elif kind == "interrupt":
                 await self._agent.interrupt()
+            elif kind == "mute":
+                muted = self._agent.set_muted(data.get("value", True))
+                await websocket.send_json(
+                    {"type": "muted", "value": muted, **self._agent.status()}
+                )
             elif kind == "text":
                 ok = await self._agent.send_text(data.get("text"))
                 if not ok:

@@ -192,6 +192,8 @@ machine.
 - Click **ACTIVATE VOICE** - the mic indicator lights up and MAYDAY listens
 - Just speak; MAYDAY detects the end of your turn and replies
 - Speak while MAYDAY is talking to **interrupt** it mid-sentence
+- Click **MUTE** to silence MAYDAY's voice while it keeps listening (and keeps
+  showing replies on screen); click **UNMUTE** to bring the voice back
 - Click **DEACTIVATE** to release the microphone
 
 Privacy: nothing is activated automatically, the microphone indicator is always

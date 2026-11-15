@@ -451,6 +451,48 @@ def test_observer():
 
 
 # ---------------------------------------------------------------------------
+# 6b. Playback mute processor
+# ---------------------------------------------------------------------------
+def test_mute_processor():
+    print("\n[6b] Playback mute processor")
+
+    from pipecat.frames.frames import TTSAudioRawFrame
+    from pipecat.tests.utils import run_test
+    from pipecat_voice.mute import MuteProcessor
+
+    def audio_frame():
+        return TTSAudioRawFrame(
+            audio=b"\x10" * 480,
+            sample_rate=24000,
+            num_channels=1,
+            context_id="ctx",
+        )
+
+    def through(muted):
+        processor = MuteProcessor(muted=muted)
+        down, _ = run(run_test(processor, frames_to_send=[audio_frame()]))
+        return [f for f in down if isinstance(f, TTSAudioRawFrame)]
+
+    toggle = MuteProcessor()
+    check("starts unmuted", toggle.muted is False)
+    check("set_muted returns new value", toggle.set_muted(True) is True)
+    check("muted property follows", toggle.muted is True)
+    check("set_muted back", toggle.set_muted(False) is False)
+
+    audio = through(False)
+    check("unmuted audio passes through", bool(audio) and audio[0].audio == b"\x10" * 480)
+
+    audio = through(True)
+    check("muted audio is silent", bool(audio) and audio[0].audio == b"\x00" * 480)
+    check(
+        "muted audio keeps its length",
+        bool(audio) and len(audio[0].audio) == 480,
+        str(len(audio[0].audio) if audio else -1),
+    )
+    check("muted frame keeps sample rate", bool(audio) and audio[0].sample_rate == 24000)
+
+
+# ---------------------------------------------------------------------------
 # 7. Pipeline assembly
 # ---------------------------------------------------------------------------
 def test_pipeline_assembly():
@@ -662,6 +704,12 @@ def test_control_server():
             await websocket.send_json({"type": "bogus"})
             results["bogus"] = await websocket.receive_json()
 
+            await websocket.send_json({"type": "mute", "value": True})
+            results["mute_on"] = await websocket.receive_json()
+
+            await websocket.send_json({"type": "mute", "value": False})
+            results["mute_off"] = await websocket.receive_json()
+
             await websocket.close()
 
         return results
@@ -673,6 +721,7 @@ def test_control_server():
     check("status ok", results["status"].get("status") == "ok")
     check("hello has state", "state" in results["hello"])
     check("hello reports transport", results["hello"].get("transport") == "local")
+    check("hello reports mute flag", "muted" in results["hello"])
     check("ping -> pong", results["pong"].get("type") == "pong")
     check(
         "text before start -> error",
@@ -684,6 +733,19 @@ def test_control_server():
         results["bogus"].get("type") == "error",
         str(results["bogus"]),
     )
+    check(
+        "mute on acknowledged",
+        results["mute_on"].get("type") == "muted"
+        and results["mute_on"].get("value") is True,
+        str(results["mute_on"]),
+    )
+    check(
+        "mute off acknowledged",
+        results["mute_off"].get("type") == "muted"
+        and results["mute_off"].get("value") is False,
+        str(results["mute_off"]),
+    )
+    check("mute reflected in status", agent.status().get("muted") is False)
 
 
 # ---------------------------------------------------------------------------
@@ -818,6 +880,7 @@ def main():
     test_llm_adapter()
     test_brain()
     test_observer()
+    test_mute_processor()
     test_pipeline_assembly()
     test_pipeline_end_to_end()
     test_control_server()
