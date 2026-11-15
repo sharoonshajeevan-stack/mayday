@@ -49,6 +49,51 @@ APP_ALIASES = {
 
     "cmd": "cmd",
     "command prompt": "cmd",
+
+    "paint": "paint",
+    "ms paint": "paint",
+    "mspaint": "paint",
+
+    "task manager": "task manager",
+    "taskmgr": "task manager",
+
+    "snipping tool": "snipping tool",
+    "snippingtool": "snipping tool",
+
+    "wordpad": "wordpad",
+
+    "control panel": "control panel",
+    "control": "control panel",
+
+    "powershell": "powershell",
+    "power shell": "powershell",
+
+    "terminal": "terminal",
+    "windows terminal": "terminal",
+
+    "edge": "edge",
+    "microsoft edge": "edge",
+
+    "vs code": "vs code",
+    "vscode": "vs code",
+    "visual studio code": "vs code",
+
+    "settings": "settings",
+    "windows settings": "settings",
+}
+
+
+FOLDER_NAMES = {
+    "desktop",
+    "document",
+    "documents",
+    "download",
+    "downloads",
+    "picture",
+    "pictures",
+    "video",
+    "videos",
+    "music",
 }
 
 
@@ -88,27 +133,81 @@ FOLDER_ALIASES = {
     "show my music": "music",
 }
 
+# Words people add around a command that should not change what it means.
+LEADING_FILLERS = (
+    "please ",
+    "kindly ",
+    "hey mayday ",
+    "hey ",
+    "mayday ",
+    "can you ",
+    "could you ",
+    "would you ",
+    "will you ",
+    "can u ",
+    "could u ",
+    "would u ",
+    "i want you to ",
+    "i need you to ",
+    "i would like you to ",
+    "i'd like you to ",
+    "do you mind ",
+    "just ",
+    "go ahead and ",
+    "go and ",
+)
+
+TRAILING_FILLERS = (
+    " for me please",
+    " for us please",
+    " for me",
+    " for us",
+    " please",
+    " right now",
+    " now",
+    " asap",
+    " immediately",
+    " thank you mayday",
+    " thank you",
+    " thanks",
+    " buddy",
+    " mate",
+    " if you can",
+    " if possible",
+)
+
+
+def _strip_fillers(text):
+    """Remove polite/filler words from either end of a command.
+
+    This is what makes "open notepad for me" behave like "open notepad".
+    """
+    changed = True
+
+    while changed:
+        changed = False
+
+        for filler in LEADING_FILLERS:
+            if text.startswith(filler):
+                text = text[len(filler):].strip()
+                changed = True
+
+        for filler in TRAILING_FILLERS:
+            if text.endswith(filler):
+                text = text[: -len(filler)].strip()
+                changed = True
+
+    return text.strip()
+
+
 def normalize_command(text):
     text = text.strip().lower()
 
     # Remove common punctuation from voice transcription.
     text = re.sub(r"[.,!?;:]+$", "", text).strip()
 
-    replacements = {
-        "please ": "",
-        "can you ": "",
-        "could you ": "",
-        "would you ": "",
-        "i want you to ": "",
-        "i need you to ": "",
-    }
+    return _strip_fillers(text)
 
-    for prefix, replacement in replacements.items():
-        if text.startswith(prefix):
-            text = text[len(prefix):]
-            break
-
-    return text.strip()
 
 def route_command(command):
     text = normalize_command(str(command or ""))
@@ -151,6 +250,7 @@ def route_command(command):
         r"^open\s+(.+)$",
         r"^launch\s+(.+)$",
         r"^start\s+(.+)$",
+        r"^run\s+(.+)$",
     ]
 
     for pattern in app_patterns:
@@ -161,16 +261,31 @@ def route_command(command):
 
         app_name = match.group(1).strip()
 
+        # "open the notepad app" -> "notepad"
+        app_name = re.sub(r"^(the|my|up)\s+", "", app_name)
         app_name = re.sub(
-            r"^(the|my)\s+",
+            r"\s+(app|application|program|window|folder)$",
             "",
             app_name,
         )
+        app_name = app_name.strip()
 
         if app_name in APP_ALIASES:
             return execute_launch_app(
                 APP_ALIASES[app_name]
             )
+
+        # "open my downloads" -> open the Downloads folder.
+        if app_name in FOLDER_NAMES:
+            return open_folder(app_name)
+
+        # Unknown but app-like name: try an executable on the PATH.
+        # If nothing matches, fall through so the AI can answer instead.
+        if re.fullmatch(r"[a-z0-9][a-z0-9 .+#_-]{0,39}", app_name):
+            result = execute_launch_app(app_name)
+
+            if result.get("status") == "success":
+                return result
 
     # ------------------------------------------------------------
     # SCREENSHOT

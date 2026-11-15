@@ -327,6 +327,21 @@ The voice pack downloads automatically on first use. List the available voices
 with `GET http://localhost:5000/api/tts/voices` and set a valid one in
 `KOKORO_VOICE` inside `backend/.env`.
 
+### **Voice Starts Slowly or Sounds Choppy**
+MAYDAY speaks in small pieces so the first words play almost immediately and
+the rest is synthesized while the current piece is still playing. These optional
+`backend/.env` values tune that behaviour:
+
+- `KOKORO_FIRST_CHARS` (default `30`) - length of the very first piece; a
+  smaller value starts speaking sooner.
+- `KOKORO_CHUNK_CHARS` (default `160`) - size of the remaining pieces.
+- `KOKORO_SPEED` (default `1.0`) - speech rate.
+
+### **"open <app> for me" Does Nothing**
+Say the app name after "open", "launch", "start", or "run". Common apps
+(notepad, calculator, chrome, paint, task manager, settings, ...) are built in,
+any executable on your `PATH` works, and everything else is answered by the AI.
+
 ### **Ollama "Model Not Found"**
 ```powershell
 ollama pull mistral

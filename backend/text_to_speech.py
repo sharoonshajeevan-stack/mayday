@@ -7,6 +7,7 @@
 
 import logging
 import os
+import queue
 import tempfile
 import threading
 import time
@@ -33,6 +34,14 @@ KOKORO_AVAILABLE = None
 
 DEFAULT_REPO = "hexgrad/Kokoro-82M"
 SAMPLE_RATE = 24000
+
+# Short function words that should not end the first spoken piece, so the
+# quick-start split does not land in an awkward place (e.g. "... one of").
+DANGLING_WORDS = {
+    "a", "an", "the", "of", "to", "in", "on", "at", "for", "and", "or",
+    "but", "so", "with", "by", "as", "is", "are", "was", "were", "be",
+    "that", "this", "it", "its", "my", "your", "our", "their",
+}
 
 
 def _env_float(name, default):
@@ -88,7 +97,10 @@ class TextToSpeechEngine:
         # laptops without needing the system volume at maximum.
         self.target_peak = _env_float("KOKORO_TARGET_PEAK", 0.97)
         self.gain = _env_float("KOKORO_GAIN", 1.0)
-        self.chunk_chars = _env_int("KOKORO_CHUNK_CHARS", 280)
+        self.chunk_chars = _env_int("KOKORO_CHUNK_CHARS", 160)
+        # The first spoken piece is kept short so playback can begin almost
+        # immediately while the rest of the reply is still being synthesized.
+        self.first_chars = _env_int("KOKORO_FIRST_CHARS", 30)
 
         # pyttsx3-style rate (50-300). 150 == normal speed.
         self.rate = int(max(50, min(300, round(self.speed * 150))))
@@ -131,12 +143,12 @@ class TextToSpeechEngine:
                 )
                 return None
 
-            # Use every available CPU core so Kokoro synthesizes near
-            # real-time on a CPU-only laptop.
+            # Kokoro is a small model; a handful of threads is faster than
+            # saturating every logical core (over-subscription slows it down).
             try:
                 import torch
 
-                threads = max(1, os.cpu_count() or 4)
+                threads = max(1, min(os.cpu_count() or 4, 8))
                 torch.set_num_threads(threads)
                 logger.info("Kokoro torch threads set to %d", threads)
             except Exception as exc:
@@ -324,52 +336,157 @@ class TextToSpeechEngine:
             }
 
         voice = self._resolve_voice(self.voice)
-        chunks = self._chunk_text(text)
-        played = 0
+        pieces = self._speech_pieces(text)
 
-        try:
-            for chunk in chunks:
-                if self._stop_requested:
-                    break
-
-                for _graphemes, _phonemes, audio in pipeline(
-                    chunk,
-                    voice=voice,
-                    speed=self.speed,
-                ):
-                    if self._stop_requested:
-                        break
-
-                    audio = np.asarray(audio, dtype=np.float32)
-                    if audio.size == 0:
-                        continue
-
-                    audio = self._apply_level(audio)
-
-                    self._play_audio(audio)
-                    played += 1
-
+        if not pieces:
             return {
                 "status": "success",
-                "message": "Speech completed" if played else "Nothing to speak",
-                "text_length": len(text),
-                "chunks": len(chunks),
-                "played": played,
+                "message": "Nothing to speak",
                 "mode": "offline",
                 "voice": voice,
                 "speed": self.speed,
-                "stopped": self._stop_requested,
                 "timestamp": datetime.now().isoformat(),
             }
 
-        except Exception as exc:
-            logger.error("Kokoro TTS error: %s", exc)
+        # Synthesize in a background thread and play from a queue, so the
+        # next piece is generated while the current one is still playing.
+        # This starts the first words sooner and removes the gaps that used
+        # to appear between sentences.
+        audio_queue = queue.Queue(maxsize=8)
+        errors = []
+
+        def produce():
+            try:
+                for piece in pieces:
+                    if self._stop_requested:
+                        break
+
+                    for _graphemes, _phonemes, audio in pipeline(
+                        piece,
+                        voice=voice,
+                        speed=self.speed,
+                    ):
+                        if self._stop_requested:
+                            break
+
+                        audio = np.asarray(audio, dtype=np.float32)
+
+                        if audio.size == 0:
+                            continue
+
+                        if not self._queue_put(
+                            audio_queue,
+                            self._apply_level(audio),
+                        ):
+                            break
+            except Exception as exc:  # noqa: BLE001
+                errors.append(str(exc))
+                logger.error("Kokoro synthesis error: %s", exc)
+            finally:
+                self._queue_put(audio_queue, None)
+
+        producer = threading.Thread(target=produce, daemon=True)
+        producer.start()
+
+        played = 0
+
+        while not self._stop_requested:
+            item = audio_queue.get()
+
+            if item is None:
+                break
+
+            self._play_audio(item)
+            played += 1
+
+        producer.join(timeout=2.0)
+
+        if errors:
             return {
                 "status": "error",
-                "message": str(exc),
+                "message": errors[0],
                 "mode": "offline",
                 "timestamp": datetime.now().isoformat(),
             }
+
+        return {
+            "status": "success",
+            "message": "Speech completed" if played else "Nothing to speak",
+            "text_length": len(text),
+            "pieces": len(pieces),
+            "played": played,
+            "mode": "offline",
+            "voice": voice,
+            "speed": self.speed,
+            "stopped": self._stop_requested,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    def _queue_put(self, audio_queue, item):
+        """Put an item on the queue, giving up if a stop was requested."""
+        while not self._stop_requested:
+            try:
+                audio_queue.put(item, timeout=0.2)
+                return True
+            except queue.Full:
+                continue
+
+        return False
+
+    def _speech_pieces(self, text):
+        """Split text into speakable pieces with a short, fast first piece."""
+        chunks = self._chunk_text(text)
+
+        if not chunks:
+            return []
+
+        first = chunks[0]
+
+        if len(first) > self.first_chars:
+            head, rest = self._split_head(first, self.first_chars)
+
+            if head and rest:
+                chunks[0] = head
+                chunks.insert(1, rest)
+
+        return chunks
+
+    @staticmethod
+    def _split_head(text, limit):
+        """Split a long piece into a short head and the remainder."""
+        import re
+
+        text = text.strip()
+
+        if len(text) <= limit:
+            return text, ""
+
+        # Prefer the first natural pause, if it is reasonably close by.
+        match = re.search(r"[,;:]\s", text)
+
+        if match and match.start() + 1 <= limit * 2:
+            head = text[: match.start() + 1].strip()
+            return head, text[match.end():].strip()
+
+        cut = text.rfind(" ", 0, limit)
+
+        if cut <= 0:
+            cut = limit
+
+        head = text[:cut].strip()
+        rest = text[cut:].strip()
+
+        # Do not end the quick-start piece on a dangling function word.
+        for _ in range(2):
+            last = head.rsplit(" ", 1)[-1].lower().strip(",.!?;:")
+
+            if last in DANGLING_WORDS and " " in head:
+                head = head.rsplit(" ", 1)[0].strip()
+                rest = text[len(head):].strip()
+            else:
+                break
+
+        return head, rest
 
     def _speak_online(self, text):
         if not WINSOUND_AVAILABLE:

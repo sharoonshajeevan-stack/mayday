@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+import shutil
 import subprocess
 import webbrowser
 from datetime import datetime
@@ -28,12 +30,27 @@ COMMAND_PERMISSIONS = {
 }
 
 
+# A plain, app-like name (no paths, no URLs). Used to decide whether an
+# unknown "open <x>" should be handed to the OS or to the AI.
+_PLAIN_APP_RE = re.compile(r"[a-z0-9][a-z0-9 .+#_-]{0,39}")
+
+
 APPLICATIONS = {
     "notepad": "notepad.exe",
     "calculator": "calc.exe",
     "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     "explorer": "explorer.exe",
     "cmd": "cmd.exe",
+    "paint": "mspaint.exe",
+    "task manager": "taskmgr.exe",
+    "snipping tool": "snippingtool.exe",
+    "wordpad": "write.exe",
+    "control panel": "control.exe",
+    "powershell": "powershell.exe",
+    "terminal": "wt.exe",
+    "edge": "microsoft-edge:",
+    "vs code": "code.exe",
+    "settings": "ms-settings:",
 }
 
 
@@ -95,17 +112,27 @@ def execute_launch_app(app_name):
 
     app = APPLICATIONS.get(app_name)
 
-    if app_name == "chrome" and not os.path.exists(app):
+    if app_name == "chrome" and app and not os.path.exists(app):
         app = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
     if not app:
-        return {
-            "status": "error",
-            "message": f"Application not supported: {app_name}",
-        }
+        # Fall back to any executable Windows can find on the PATH, so
+        # "open <whatever>" works for tools like python, git, code, etc.
+        # (We deliberately avoid shell-opening unknown names, which can
+        # pop an "Open with" dialog.)
+        if _PLAIN_APP_RE.fullmatch(app_name) and shutil.which(app_name):
+            app = app_name
+        else:
+            return {
+                "status": "error",
+                "message": f"Application not supported: {app_name}",
+            }
 
     try:
-        if os.path.isfile(app):
+        if app.endswith(":") or "://" in app:
+            # A URI protocol such as ms-settings:
+            os.startfile(app)
+        elif os.path.isfile(app):
             subprocess.Popen([app])
         else:
             subprocess.Popen(app)

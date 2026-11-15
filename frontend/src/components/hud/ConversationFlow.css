@@ -4,12 +4,13 @@
 .conversation-flow {
   position: fixed;
 
-  left: 50%;
-  top: 60%;
+  right: 32px;
+  top: 50%;
 
-  transform: translateX(-50%);
+  transform: translateY(-50%);
 
-  width: min(620px, 78vw);
+  width: min(400px, 34vw);
+  max-height: 64vh;
 
   z-index: 9994;
 
@@ -64,6 +65,28 @@
   color: rgba(255, 255, 255, 0.78);
 
   font-size: 11px;
+
+  max-height: 52vh;
+
+  overflow-y: auto;
+
+  pointer-events: auto;
+
+  user-select: text;
+}
+
+.conversation-response::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversation-response::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-response::-webkit-scrollbar-thumb {
+  background: rgba(255, 138, 0, 0.35);
+
+  border-radius: 3px;
 }
 
 .conversation-response-label {
@@ -93,5 +116,32 @@
   51%,
   100% {
     opacity: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .conversation-flow {
+    right: 18px;
+
+    width: min(340px, 46vw);
+  }
+}
+
+@media (max-width: 700px) {
+  .conversation-flow {
+    left: 50%;
+    right: auto;
+
+    top: auto;
+    bottom: 235px;
+
+    transform: translateX(-50%);
+
+    width: 86vw;
+    max-height: 32vh;
+  }
+
+  .conversation-response {
+    max-height: 24vh;
   }
 }
