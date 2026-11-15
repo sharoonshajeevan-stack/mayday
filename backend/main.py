@@ -1,6 +1,6 @@
 # ============================================================================
-# ULTRON OS - MAIN API SERVER
-# File: D:\ULTRON-OS\backend\main.py
+# MAYDAY OS - MAIN API SERVER
+# File: D:\MAYDAY-OS\backend\main.py
 # Purpose: Central API server that connects React frontend to Python backend
 # ============================================================================
 
@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+import json
 import logging
 from datetime import datetime
 from wake_word_detector import start_wake_word_detection, stop_wake_word_detection, get_detector_status
@@ -17,6 +18,10 @@ from system_commands import execute_shutdown, execute_restart, execute_launch_ap
 from text_to_speech import speak_text_async, stop_speaking, set_voice, set_speech_rate, set_volume, get_voices, get_tts_status
 from memory_system import add_memory, get_recent_memories, search_memories, get_context, get_memory_status, get_memory_stats, clear_session, clear_all, export_all_memories
 from ollama_service import get_ollama_status, get_ollama_models, generate_ollama_response, chat_with_ollama, set_ollama_model
+from voice_mode import get_voice_mode_status, set_voice_mode
+from online_service import get_online_status
+from command_router import route_command
+from action_result import format_action_result
 
 # Load environment variables from .env file
 load_dotenv()
@@ -53,6 +58,30 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
+def stringify_response(value):
+    """Convert an AI response of any shape into display-ready text."""
+    if value is None:
+        return ""
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, dict):
+        for key in ("message", "response", "text"):
+            if isinstance(value.get(key), str):
+                return value[key]
+        return json.dumps(value, indent=2)
+
+    if isinstance(value, (list, tuple)):
+        return "\n".join(
+            item if isinstance(item, str) else json.dumps(item)
+            for item in value
+        )
+
+    return str(value)
+
+
 # ============================================================================
 # HEALTH CHECK ENDPOINT
 # ============================================================================
@@ -71,7 +100,7 @@ def health_check():
     try:
         response = {
             "status": "healthy",
-            "message": "ULTRON OS API is running",
+            "message": "MAYDAY OS API is running",
             "timestamp": datetime.now().isoformat(),
             "environment": FLASK_ENV
         }
@@ -94,7 +123,7 @@ def welcome():
     Response: JSON with API details
     """
     response = {
-        "name": "ULTRON OS API",
+        "name": "MAYDAY OS API",
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
@@ -116,7 +145,7 @@ def welcome():
 @app.route('/api/wake-word/start', methods=['POST'])
 def start_wake_word():
     """
-    Start listening for wake word "Ultron"
+    Start listening for wake word "Mayday"
     
     Response: {"status": "success", "message": "Listening for wake word"}
     """
@@ -129,7 +158,7 @@ def start_wake_word():
         logger.info("Wake word detection started")
         return jsonify({
             "status": "success",
-            "message": "Listening for wake word 'Ultron'",
+            "message": "Listening for wake word 'Mayday'",
             "timestamp": datetime.now().isoformat()
         }), 200
     
@@ -169,7 +198,7 @@ def wake_word_status():
     """
     Get wake word detector status
     
-    Response: {"is_listening": true/false, "wake_word": "ultron", ...}
+    Response: {"is_listening": true/false, "wake_word": "mayday", ...}
     """
     try:
         status = get_detector_status()
@@ -444,7 +473,7 @@ def test_endpoint():
         response = {
             "status": "success",
             "received": data,
-            "message": "Echo response from ULTRON OS API"
+            "message": "Echo response from MAYDAY OS API"
         }
         return jsonify(response), 200
     
@@ -459,34 +488,77 @@ def test_endpoint():
 @app.route('/api/command', methods=['POST'])
 def process_command():
     """
-    Process commands from React UI
-    
+    Process a command from the React UI.
+
     Request: {"command": "hello", "params": {...}}
-    Response: {"status": "success", "result": "..."}
-    
-    This will later connect to AI engine, voice system, etc.
+
+    Flow:
+      1. Deterministic system actions are handled by the command router
+         (open app/URL, screenshot, processes, power controls, ...).
+      2. Everything else is handled by the AI engine, which answers local
+         utility commands (greeting/status/help/time) and forwards natural
+         language to the active provider (Gemini online / Ollama offline).
+
+    Response: {"status": "success", "response": "...", "state": "RESPONDING"}
     """
     try:
-        data = request.get_json()
-        command = data.get('command', '')
-        
+        data = request.get_json(silent=True) or {}
+        command = str(data.get('command', '')).strip()
+        params = data.get('params') or {}
+
+        if not command:
+            return jsonify({
+                "status": "error",
+                "response": "No command provided.",
+                "state": "IDLE",
+                "timestamp": datetime.now().isoformat()
+            }), 400
+
         logger.info(f"Command received: {command}")
-        
-        # For now, just echo back
-        response = {
+
+        # 1) Deterministic system actions first.
+        action = route_command(command)
+
+        if action:
+            formatted = format_action_result(action)
+            formatted["command"] = command
+            formatted["timestamp"] = datetime.now().isoformat()
+
+            logger.info(f"Command routed to system action: {command}")
+            return jsonify(formatted), 200
+
+        # 2) Assistant / AI engine.
+        result = process_ai_command(command, params)
+
+        if result.get("status") != "success":
+            return jsonify({
+                "status": "error",
+                "command": command,
+                "response": result.get("error", "AI request failed."),
+                "state": "IDLE",
+                "source": result.get("source"),
+                "timestamp": datetime.now().isoformat()
+            }), 200
+
+        return jsonify({
             "status": "success",
             "command": command,
-            "result": f"Command '{command}' received. AI processing coming soon!",
+            "response": stringify_response(result.get("response")),
+            "mode": result.get("mode"),
+            "source": result.get("source"),
+            "state": "RESPONDING",
+            "engine": result.get("engine"),
             "timestamp": datetime.now().isoformat()
-        }
-        return jsonify(response), 200
-    
+        }), 200
+
     except Exception as e:
-        logger.error(f"Command processing error: {str(e)}")
+        logger.exception("Command processing error")
         return jsonify({
             "status": "error",
-            "message": str(e)
-        }), 400
+            "response": f"Command processing failed: {e}",
+            "state": "IDLE",
+            "timestamp": datetime.now().isoformat()
+        }), 500
 # ============================================================================
 # SPEECH-TO-TEXT ENDPOINTS
 # ============================================================================
@@ -634,7 +706,7 @@ def system_shutdown():
         result = execute_shutdown(delay)
         
         logger.warning(f"System shutdown requested (delay: {delay}s)")
-        return jsonify(result), 200 if result['status'] == 'success' else 403
+        return jsonify(result), 200 if result['status'] in ('success', 'confirmation_required') else 403
     
     except Exception as e:
         logger.error(f"Error in shutdown: {e}")
@@ -658,7 +730,7 @@ def system_restart():
         result = execute_restart(delay)
         
         logger.warning(f"System restart requested (delay: {delay}s)")
-        return jsonify(result), 200 if result['status'] == 'success' else 403
+        return jsonify(result), 200 if result['status'] in ('success', 'confirmation_required') else 403
     
     except Exception as e:
         logger.error(f"Error in restart: {e}")
@@ -788,7 +860,7 @@ def system_get_permissions():
         
         return jsonify({
             "status": "success",
-            "permissions": perms,
+            "permissions": perms.get("permissions", perms),
             "timestamp": datetime.now().isoformat()
         }), 200
     
@@ -1451,7 +1523,7 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     logger.info("=" * 80)
-    logger.info("ULTRON OS API SERVER STARTING")
+    logger.info("MAYDAY OS API SERVER STARTING")
     logger.info("=" * 80)
     logger.info(f"Environment: {FLASK_ENV}")
     logger.info(f"Server: {API_HOST}:{API_PORT}")

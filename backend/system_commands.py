@@ -59,7 +59,7 @@ def get_command_permissions():
     }
 
 
-def execute_shutdown():
+def execute_shutdown(delay=None):
     if not COMMAND_PERMISSIONS["shutdown"]:
         return {
             "status": "error",
@@ -69,11 +69,12 @@ def execute_shutdown():
     return {
         "status": "confirmation_required",
         "action": "shutdown",
+        "delay": delay,
         "message": "Shutdown requested. Please confirm.",
     }
 
 
-def execute_restart():
+def execute_restart(delay=None):
     if not COMMAND_PERMISSIONS["restart"]:
         return {
             "status": "error",
@@ -83,6 +84,7 @@ def execute_restart():
     return {
         "status": "confirmation_required",
         "action": "restart",
+        "delay": delay,
         "message": "Restart requested. Please confirm.",
     }
 
@@ -158,13 +160,83 @@ def execute_open_url(url):
         }
 
 
-def execute_get_processes():
+def _format_bytes(num_bytes):
+    try:
+        num_bytes = float(num_bytes)
+    except (TypeError, ValueError):
+        return "0 B"
+
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if num_bytes < 1024 or unit == "TB":
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024
+
+
+def execute_get_processes(limit=None):
     if not COMMAND_PERMISSIONS["get_processes"]:
         return {
             "status": "error",
             "message": "Process access permission is disabled.",
         }
 
+    try:
+        import psutil
+    except ImportError:
+        return _get_processes_tasklist(limit)
+
+    try:
+        processes = []
+
+        for proc in psutil.process_iter(["pid", "name", "memory_info"]):
+            try:
+                info = proc.info
+                memory = info.get("memory_info")
+
+                processes.append({
+                    "pid": info.get("pid"),
+                    "name": info.get("name") or "unknown",
+                    "memory": (
+                        _format_bytes(memory.rss)
+                        if memory is not None
+                        else "0 B"
+                    ),
+                    "memory_bytes": (
+                        getattr(memory, "rss", 0)
+                        if memory is not None
+                        else 0
+                    ),
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        processes.sort(
+            key=lambda item: item["memory_bytes"],
+            reverse=True,
+        )
+
+        if limit:
+            try:
+                processes = processes[: int(limit)]
+            except (TypeError, ValueError):
+                pass
+
+        return {
+            "status": "success",
+            "processes": processes,
+            "count": len(processes),
+        }
+
+    except Exception as error:
+        logger.exception("Process listing failed")
+
+        return {
+            "status": "error",
+            "message": str(error),
+        }
+
+
+def _get_processes_tasklist(limit=None):
+    """Fallback process listing that does not require psutil."""
     try:
         result = subprocess.run(
             ["tasklist"],
@@ -176,6 +248,7 @@ def execute_get_processes():
         return {
             "status": "success",
             "processes": result.stdout,
+            "count": len(result.stdout.splitlines()),
         }
 
     except Exception as error:
@@ -195,19 +268,41 @@ def execute_get_system_info():
         }
 
     try:
+        info = {
+            "platform": os.name,
+            "computer": os.environ.get(
+                "COMPUTERNAME",
+                "Unknown",
+            ),
+            "user": os.environ.get(
+                "USERNAME",
+                "Unknown",
+            ),
+        }
+
+        try:
+            import psutil
+
+            info["cpu_count"] = psutil.cpu_count(logical=True)
+
+            memory = psutil.virtual_memory()
+            info["memory_total"] = _format_bytes(memory.total)
+            info["memory_available"] = _format_bytes(memory.available)
+            info["memory_percent"] = memory.percent
+
+            disk = psutil.disk_usage(os.path.abspath(os.sep))
+            info["disk_total"] = _format_bytes(disk.total)
+            info["disk_free"] = _format_bytes(disk.free)
+        except Exception as metrics_error:
+            logger.warning(
+                "System metrics unavailable: %s",
+                metrics_error,
+            )
+
         return {
             "status": "success",
-            "system": {
-                "platform": os.name,
-                "computer": os.environ.get(
-                    "COMPUTERNAME",
-                    "Unknown",
-                ),
-                "user": os.environ.get(
-                    "USERNAME",
-                    "Unknown",
-                ),
-            },
+            "system": info,
+            "info": info,
         }
 
     except Exception as error:

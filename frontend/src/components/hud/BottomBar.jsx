@@ -5,7 +5,7 @@ export default function BottomBar() {
     <footer className={styles.bar}>
       <input
         className={styles.input}
-        placeholder="Ask ULTRON anything..."
+        placeholder="Ask MAYDAY anything..."
       />
 
       <button className={styles.button}>

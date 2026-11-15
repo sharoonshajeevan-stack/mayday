@@ -30,10 +30,10 @@ export default function BackendBridge() {
           setAIState("IDLE");
 
           window.dispatchEvent(
-            new CustomEvent("ultron:response", {
+            new CustomEvent("mayday:response", {
               detail:
                 result?.error ||
-                "ULTRON backend connection failed.",
+                "MAYDAY backend connection failed.",
             }),
           );
 
@@ -46,8 +46,8 @@ export default function BackendBridge() {
           setAIState("IDLE");
 
           window.dispatchEvent(
-            new CustomEvent("ultron:response", {
-              detail: "ULTRON received an empty backend response.",
+            new CustomEvent("mayday:response", {
+              detail: "MAYDAY received an empty backend response.",
             }),
           );
 
@@ -68,7 +68,7 @@ export default function BackendBridge() {
         }
 
         window.dispatchEvent(
-          new CustomEvent("ultron:response", {
+          new CustomEvent("mayday:response", {
             detail: response,
           }),
         );
@@ -80,7 +80,7 @@ export default function BackendBridge() {
         setAIState("IDLE");
 
         window.dispatchEvent(
-          new CustomEvent("ultron:response", {
+          new CustomEvent("mayday:response", {
             detail: `Backend error: ${error.message}`,
           }),
         );
@@ -88,7 +88,7 @@ export default function BackendBridge() {
     };
 
     window.addEventListener(
-      "ultron:command",
+      "mayday:command",
       handleCommand,
     );
 
@@ -96,7 +96,7 @@ export default function BackendBridge() {
       mounted = false;
 
       window.removeEventListener(
-        "ultron:command",
+        "mayday:command",
         handleCommand,
       );
     };

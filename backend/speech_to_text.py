@@ -1,5 +1,5 @@
 # ============================================================================
-# ULTRON OS - SPEECH-TO-TEXT ENGINE
+# MAYDAY OS - SPEECH-TO-TEXT ENGINE
 # File: backend/speech_to_text.py
 # Purpose: Local Whisper or online STT according to voice mode.
 # ============================================================================
@@ -14,7 +14,7 @@ import numpy as np
 import pyaudio
 
 from online_service import transcribe_online_audio
-from voice_mode import get_active_voice_mode
+from voice_mode import get_active_voice_mode, is_online_configured
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +187,12 @@ class SpeechToTextEngine:
             self._save_audio_file(combined_audio, temp_file)
 
             mode = self.processing_mode or get_active_voice_mode()
+
+            if mode == "online" and not is_online_configured():
+                logger.warning(
+                    "Online STT not configured; falling back to offline Whisper"
+                )
+                mode = "offline"
 
             if mode == "online":
                 result = transcribe_online_audio(temp_file)

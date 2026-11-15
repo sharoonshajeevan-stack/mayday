@@ -20,13 +20,13 @@ export default function WakeWordIndicator() {
     };
 
     window.addEventListener(
-      "ultron:wakeword",
+      "mayday:wakeword",
       handleWakeWord
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:wakeword",
+        "mayday:wakeword",
         handleWakeWord
       );
     };
@@ -42,7 +42,7 @@ export default function WakeWordIndicator() {
         <span className="wake-word-dot" />
 
         <span className="wake-word-text">
-          ULTRON
+          MAYDAY
         </span>
 
         <span className="wake-word-status">

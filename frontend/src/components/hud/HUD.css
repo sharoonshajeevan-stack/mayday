@@ -1,10 +1,10 @@
 /* src/components/hud/HUD.css */
 
 /* =========================================================
-   ULTRON HUD — FINAL CINEMATIC FRAME
+   MAYDAY HUD — FINAL CINEMATIC FRAME
    ========================================================= */
 
-.ultron-hud,
+.mayday-hud,
 .hud {
   position: fixed;
   inset: 0;
@@ -32,7 +32,7 @@
    CINEMATIC ATMOSPHERE
    ========================================================= */
 
-.ultron-hud::before {
+.mayday-hud::before {
   content: "";
 
   position: absolute;
@@ -53,7 +53,7 @@
 
 /* Very subtle screen edge darkening */
 
-.ultron-hud::after {
+.mayday-hud::after {
   content: "";
 
   position: absolute;

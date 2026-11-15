@@ -1,15 +1,31 @@
 # ============================================================================
-# OLLAMA SERVICE - Local LLM integration
-# File: D:\ULTRON-OS\backend\ollama_service.py
-# Purpose: Connect to Ollama for offline AI responses
+# MAYDAY OS - OLLAMA SERVICE
+# File: backend/ollama_service.py
+# Purpose: Connect MAYDAY to Ollama for offline AI responses
 # ============================================================================
 
-import requests
 import logging
+import os
 from datetime import datetime
-import json
+
+import requests
+from dotenv import load_dotenv
+
+
+# ============================================================================
+# ENVIRONMENT CONFIGURATION
+# ============================================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_FILE = os.path.join(BASE_DIR, ".env")
+
+load_dotenv(ENV_FILE)
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_OLLAMA_HOST = "http://localhost:11434"
+DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b"
+
 
 # ============================================================================
 # OLLAMA SERVICE CLASS
@@ -17,230 +33,367 @@ logger = logging.getLogger(__name__)
 
 class OllamaService:
     """
-    Integrates with Ollama for local LLM inference.
-    Provides fallback to default AI when Ollama unavailable.
+    MAYDAY local Ollama service.
+
+    Handles:
+    - Ollama availability checks
+    - Local model discovery
+    - Offline AI generation
+    - Conversation-based Ollama chat
     """
 
     def __init__(self, host=None, model=None):
-        self.host = host
-        self.model = model
+        env_host = os.getenv("OLLAMA_HOST", DEFAULT_OLLAMA_HOST).strip()
+        env_model = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL).strip()
+
+        self.host = (host or env_host or DEFAULT_OLLAMA_HOST).rstrip("/")
+        self.model = model or env_model or DEFAULT_OLLAMA_MODEL
+
         self.is_available = False
-        self.response_time = 0
-        
-        # Check if Ollama is running
+        self.response_time = 0.0
+
         self._check_availability()
-        
-        logger.info(f"Ollama Service initialized (Model: {model})")
+
+        logger.info(
+            "Ollama Service initialized (Host: %s, Model: %s)",
+            self.host,
+            self.model,
+        )
+
+    # ========================================================================
+    # AVAILABILITY
+    # ========================================================================
 
     def _check_availability(self):
-        """Check if Ollama server is running"""
+        """Check whether the local Ollama server is running."""
+
         try:
-            response = requests.get(f"{self.host}/api/tags", timeout=2)
+            response = requests.get(
+                f"{self.host}/api/tags",
+                timeout=2,
+            )
+
             self.is_available = response.status_code == 200
-            
+
             if self.is_available:
-                logger.info("✅ Ollama server is running")
+                logger.info("Ollama server is running")
             else:
-                logger.warning("❌ Ollama server not responding")
-        
-        except Exception as e:
-            logger.warning(f"Ollama not available: {e}")
+                logger.warning(
+                    "Ollama server returned HTTP %s",
+                    response.status_code,
+                )
+
+        except requests.RequestException as exc:
+            logger.warning("Ollama not available: %s", exc)
             self.is_available = False
 
+        except Exception as exc:
+            logger.error(
+                "Unexpected Ollama availability error: %s",
+                exc,
+            )
+            self.is_available = False
+
+        return self.is_available
+
+    # ========================================================================
+    # STATUS
+    # ========================================================================
+
     def get_status(self):
-        """Get Ollama service status"""
+        """Get current Ollama service status."""
+
         self._check_availability()
-        
+
         return {
             "available": self.is_available,
             "host": self.host,
             "model": self.model,
             "status": "ONLINE" if self.is_available else "OFFLINE",
-            "timestamp": datetime.now().isoformat()
+            "response_time": self.response_time,
+            "timestamp": datetime.now().isoformat(),
         }
 
+    # ========================================================================
+    # MODEL DISCOVERY
+    # ========================================================================
+
     def get_available_models(self):
-        """Get list of available Ollama models"""
+        """Return locally installed Ollama models."""
+
         try:
-            if not self.is_available:
+            if not self._check_availability():
                 return {
                     "status": "error",
                     "message": "Ollama not available",
-                    "models": []
+                    "models": [],
                 }
-            
-            response = requests.get(f"{self.host}/api/tags", timeout=5)
-            
-            if response.status_code == 200:
-                data = response.json()
-                models = []
-                
-                if 'models' in data:
-                    for model in data['models']:
-                        models.append({
-                            "name": model.get('name', 'unknown'),
-                            "size": model.get('size', 0),
-                            "modified": model.get('modified_at', '')
-                        })
-                
-                logger.info(f"Found {len(models)} Ollama models")
-                return {
-                    "status": "success",
-                    "models": models,
-                    "count": len(models)
-                }
-            else:
+
+            response = requests.get(
+                f"{self.host}/api/tags",
+                timeout=5,
+            )
+
+            if response.status_code != 200:
                 return {
                     "status": "error",
-                    "message": "Failed to get models",
-                    "models": []
+                    "message": (
+                        f"Failed to get models: HTTP "
+                        f"{response.status_code}"
+                    ),
+                    "models": [],
                 }
-        
-        except Exception as e:
-            logger.error(f"Error getting models: {e}")
+
+            data = response.json()
+            models = []
+
+            for model in data.get("models", []):
+                models.append({
+                    "name": model.get("name", "unknown"),
+                    "size": model.get("size", 0),
+                    "modified": model.get("modified_at", ""),
+                })
+
+            logger.info(
+                "Found %d Ollama model(s)",
+                len(models),
+            )
+
+            return {
+                "status": "success",
+                "models": models,
+                "count": len(models),
+            }
+
+        except requests.RequestException as exc:
+            logger.error(
+                "Error getting Ollama models: %s",
+                exc,
+            )
+
             return {
                 "status": "error",
-                "message": str(e),
-                "models": []
+                "message": str(exc),
+                "models": [],
             }
+
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error getting Ollama models"
+            )
+
+            return {
+                "status": "error",
+                "message": str(exc),
+                "models": [],
+            }
+
+    # ========================================================================
+    # RESPONSE GENERATION
+    # ========================================================================
 
     def generate_response(self, prompt, stream=False):
         """
-        Generate response using Ollama
-        
-        Args:
-            prompt (str): User prompt
-            stream (bool): Stream response character by character
-        
-        Returns:
-            dict: Response data
+        Generate an offline response using Ollama.
         """
+
+        if not prompt or not str(prompt).strip():
+            return {
+                "status": "error",
+                "message": "No prompt provided",
+                "response": None,
+                "source": "ollama",
+            }
+
+        if not self.is_available:
+            self._check_availability()
+
+        if not self.is_available:
+            return {
+                "status": "error",
+                "message": "Ollama not available",
+                "response": None,
+                "source": "ollama",
+            }
+
         try:
-            if not self.is_available:
-                return {
-                    "status": "error",
-                    "message": "Ollama not available",
-                    "response": None,
-                    "source": "error"
-                }
-            
-            if not prompt or not prompt.strip():
-                return {
-                    "status": "error",
-                    "message": "No prompt provided",
-                    "response": None,
-                    "source": "error"
-                }
-            
-            logger.info(f"Generating response with {self.model}...")
-            
-            # Build request
+            logger.info(
+                "Generating response with %s...",
+                self.model,
+            )
+
             payload = {
                 "model": self.model,
-                "prompt": prompt,
-                "stream": False  # We'll use non-streaming for simplicity
+                "prompt": str(prompt),
+                "stream": False,
             }
-            
-            # Make request to Ollama
+
             start_time = datetime.now()
+
             response = requests.post(
                 f"{self.host}/api/generate",
                 json=payload,
-                timeout=120  # 2 minute timeout
+                timeout=120,
             )
-            
-            response_time = (datetime.now() - start_time).total_seconds()
-            self.response_time = response_time
-            
-            if response.status_code == 200:
-                data = response.json()
-                result_text = data.get('response', '').strip()
-                
-                logger.info(f"Response generated in {response_time:.2f}s")
-                
-                return {
-                    "status": "success",
-                    "response": result_text,
-                    "model": self.model,
-                    "response_time": response_time,
-                    "source": "ollama",
-                    "timestamp": datetime.now().isoformat()
-                }
-            else:
-                logger.error(f"Ollama error: {response.status_code}")
+
+            self.response_time = (
+                datetime.now() - start_time
+            ).total_seconds()
+
+            if response.status_code != 200:
+                logger.error(
+                    "Ollama returned HTTP %s",
+                    response.status_code,
+                )
+
                 return {
                     "status": "error",
-                    "message": f"Ollama returned {response.status_code}",
+                    "message": (
+                        f"Ollama returned "
+                        f"{response.status_code}"
+                    ),
                     "response": None,
-                    "source": "ollama"
+                    "source": "ollama",
+                    "response_time": self.response_time,
                 }
-        
+
+            data = response.json()
+            result_text = data.get("response", "").strip()
+
+            logger.info(
+                "Ollama response generated in %.2fs",
+                self.response_time,
+            )
+
+            return {
+                "status": "success",
+                "response": result_text,
+                "model": self.model,
+                "response_time": self.response_time,
+                "source": "ollama",
+                "timestamp": datetime.now().isoformat(),
+            }
+
         except requests.Timeout:
             logger.error("Ollama request timed out")
+
             return {
                 "status": "error",
-                "message": "Request timed out",
+                "message": "Ollama request timed out",
                 "response": None,
-                "source": "ollama"
+                "source": "ollama",
             }
-        
-        except Exception as e:
-            logger.error(f"Error generating response: {e}")
+
+        except requests.RequestException as exc:
+            logger.error(
+                "Ollama network error: %s",
+                exc,
+            )
+
+            self.is_available = False
+
             return {
                 "status": "error",
-                "message": str(e),
+                "message": str(exc),
                 "response": None,
-                "source": "ollama"
+                "source": "ollama",
             }
+
+        except Exception as exc:
+            logger.exception(
+                "Unexpected Ollama response error"
+            )
+
+            return {
+                "status": "error",
+                "message": str(exc),
+                "response": None,
+                "source": "ollama",
+            }
+
+    # ========================================================================
+    # CONVERSATION CHAT
+    # ========================================================================
 
     def chat(self, messages, system_prompt=None):
         """
-        Chat with Ollama (with conversation history)
-        
-        Args:
-            messages (list): List of messages [{"role": "user", "content": "..."}, ...]
-            system_prompt (str): System prompt for context
-        
-        Returns:
-            dict: Response data
+        Generate an Ollama response using conversation history.
         """
+
         try:
-            if not self.is_available:
+            if not messages:
                 return {
                     "status": "error",
-                    "message": "Ollama not available",
-                    "response": None
+                    "message": "No messages provided",
+                    "response": None,
+                    "source": "ollama",
                 }
-            
-            # Format messages into a prompt
-            prompt = ""
-            
+
+            prompt_parts = []
+
             if system_prompt:
-                prompt += f"System: {system_prompt}\n\n"
-            
-            for msg in messages:
-                role = msg.get('role', 'user').capitalize()
-                content = msg.get('content', '')
-                prompt += f"{role}: {content}\n"
-            
-            prompt += "Assistant: "
-            
-            # Generate response
+                prompt_parts.append(
+                    f"System: {system_prompt}"
+                )
+
+            for message in messages:
+                role = str(
+                    message.get("role", "user")
+                ).capitalize()
+
+                content = str(
+                    message.get("content", "")
+                ).strip()
+
+                if content:
+                    prompt_parts.append(
+                        f"{role}: {content}"
+                    )
+
+            prompt_parts.append("Assistant:")
+
+            prompt = "\n\n".join(prompt_parts)
+
             return self.generate_response(prompt)
-        
-        except Exception as e:
-            logger.error(f"Error in chat: {e}")
+
+        except Exception as exc:
+            logger.exception(
+                "Error in Ollama conversation chat"
+            )
+
             return {
                 "status": "error",
-                "message": str(e),
-                "response": None
+                "message": str(exc),
+                "response": None,
+                "source": "ollama",
             }
 
+    # ========================================================================
+    # MODEL SELECTION
+    # ========================================================================
+
     def set_model(self, model_name):
-        """Change the active model"""
+        """Change MAYDAY's active local Ollama model."""
+
+        model_name = str(model_name or "").strip()
+
+        if not model_name:
+            return {
+                "status": "error",
+                "message": "Model name cannot be empty",
+            }
+
         self.model = model_name
-        logger.info(f"Model changed to: {model_name}")
-        return {"status": "success", "model": model_name}
+
+        logger.info(
+            "Ollama model changed to: %s",
+            model_name,
+        )
+
+        return {
+            "status": "success",
+            "model": model_name,
+        }
 
 
 # ============================================================================
@@ -255,25 +408,33 @@ ollama_service = OllamaService()
 # ============================================================================
 
 def get_ollama_status():
-    """Get Ollama status"""
+    """Get Ollama service status."""
+
     return ollama_service.get_status()
 
 
 def get_ollama_models():
-    """Get available models"""
+    """Get locally available Ollama models."""
+
     return ollama_service.get_available_models()
 
 
 def generate_ollama_response(prompt):
-    """Generate response using Ollama"""
+    """Generate an offline Ollama response."""
+
     return ollama_service.generate_response(prompt)
 
 
 def chat_with_ollama(messages, system_prompt=None):
-    """Chat with Ollama"""
-    return ollama_service.chat(messages, system_prompt)
+    """Chat with Ollama using conversation history."""
+
+    return ollama_service.chat(
+        messages,
+        system_prompt,
+    )
 
 
 def set_ollama_model(model_name):
-    """Set active model"""
+    """Set the active Ollama model."""
+
     return ollama_service.set_model(model_name)

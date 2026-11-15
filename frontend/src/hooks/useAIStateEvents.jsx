@@ -15,13 +15,13 @@ export default function useAIStateEvents() {
     };
 
     window.addEventListener(
-      "ultron:state",
+      "mayday:state",
       handleState
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:state",
+        "mayday:state",
         handleState
       );
     };

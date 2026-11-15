@@ -1,6 +1,6 @@
-# 🚀 ULTRON OS - Complete Setup Guide
+# 🚀 MAYDAY OS - Complete Setup Guide
 
-Step-by-step instructions to get ULTRON OS running on your Windows 11 PC.
+Step-by-step instructions to get MAYDAY OS running on your Windows 11 PC.
 
 ---
 
@@ -72,15 +72,15 @@ If not installed, download from https://nodejs.org
 ### **2.1 Create Main Directory**
 
 ```powershell
-mkdir D:\ULTRON-OS
-cd D:\ULTRON-OS
+mkdir D:\MAYDAY-OS
+cd D:\MAYDAY-OS
 ```
 
 ### **2.2 Organize Folders**
 
 Your structure should look like:
 
-D:\ULTRON-OS
+D:\MAYDAY-OS
 ├── frontend\ (React UI)
 ├── backend\ (Python API)
 └── README.md
@@ -93,15 +93,15 @@ D:\ULTRON-OS
 ### **3.1 Create Backend Folder**
 
 ```powershell
-mkdir D:\ULTRON-OS\backend
-mkdir D:\ULTRON-OS\backend\logs
-mkdir D:\ULTRON-OS\backend\memory
-cd D:\ULTRON-OS\backend
+mkdir D:\MAYDAY-OS\backend
+mkdir D:\MAYDAY-OS\backend\logs
+mkdir D:\MAYDAY-OS\backend\memory
+cd D:\MAYDAY-OS\backend
 ```
 
 ### **3.2 Create Requirements File**
 
-Create `D:\ULTRON-OS\backend\requirements.txt`:
+Create `D:\MAYDAY-OS\backend\requirements.txt`:
 
 Flask==3.0.0
 Flask-CORS==4.0.0
@@ -123,7 +123,7 @@ pip install -r requirements.txt
 
 ### **3.4 Create .env File**
 
-Create `D:\ULTRON-OS\backend\.env`:
+Create `D:\MAYDAY-OS\backend\.env`:
 
 FLASK_ENV=development
 FLASK_DEBUG=True
@@ -151,8 +151,8 @@ Copy all `.py` files from documentation into backend folder:
 ### **4.1 Create Frontend Folder**
 
 ```powershell
-mkdir D:\ULTRON-OS\frontend
-cd D:\ULTRON-OS\frontend
+mkdir D:\MAYDAY-OS\frontend
+cd D:\MAYDAY-OS\frontend
 npm create vite@latest . -- --template react
 ```
 
@@ -172,7 +172,7 @@ npm install three react-three-fiber @react-three/drei @react-three/postprocessin
 
 ### **4.4 Copy React Files**
 
-Create the following files in `D:\ULTRON-OS\frontend\src\`:
+Create the following files in `D:\MAYDAY-OS\frontend\src\`:
 
 **folders to create:**
 - components/
@@ -205,7 +205,7 @@ Create the following files in `D:\ULTRON-OS\frontend\src\`:
 
 ---
 
-## 🚀 **Step 5: Run ULTRON OS**
+## 🚀 **Step 5: Run MAYDAY OS**
 
 ### **Terminal 1: Start Ollama**
 
@@ -223,7 +223,7 @@ listening on 127.0.0.1:11434
 ### **Terminal 2: Start Backend**
 
 ```powershell
-cd D:\ULTRON-OS\backend
+cd D:\MAYDAY-OS\backend
 python main.py
 ```
 
@@ -237,7 +237,7 @@ Running on http://127.0.0.1:5000
 ### **Terminal 3: Start Frontend**
 
 ```powershell
-cd D:\ULTRON-OS\frontend
+cd D:\MAYDAY-OS\frontend
 npm run dev
 ```
 
@@ -252,7 +252,7 @@ Local: http://localhost:5173/
 
 Go to: `http://localhost:5173/`
 
-🎉 **ULTRON OS is running!**
+🎉 **MAYDAY OS is running!**
 
 ---
 
@@ -265,9 +265,9 @@ Go to: `http://localhost:5173/`
 
 ### **Test 2: Wake Word**
 - Click "Start Listening"
-- Status should show "Listening for Ultron"
+- Status should show "Listening for Mayday"
 - Click "Test Detection"
-- Should see "ULTRON DETECTED!"
+- Should see "MAYDAY DETECTED!"
 
 ### **Test 3: Speech-to-Text**
 - Click "Start Recording"
@@ -332,14 +332,14 @@ python --version
 
 ## ✅ **You're Done!**
 
-ULTRON OS is ready to use! 🎉
+MAYDAY OS is ready to use! 🎉
 
 **Quick Start Next Time:**
 1. Open Terminal 1: `ollama serve`
-2. Open Terminal 2: `cd D:\ULTRON-OS\backend && python main.py`
-3. Open Terminal 3: `cd D:\ULTRON-OS\frontend && npm run dev`
+2. Open Terminal 2: `cd D:\MAYDAY-OS\backend && python main.py`
+3. Open Terminal 3: `cd D:\MAYDAY-OS\frontend && npm run dev`
 4. Open browser: `http://localhost:5173/`
 
 ---
 
-**Have fun with ULTRON OS!** 🚀
+**Have fun with MAYDAY OS!** 🚀

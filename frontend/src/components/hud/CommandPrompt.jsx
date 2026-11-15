@@ -21,7 +21,7 @@ export default function CommandPrompt() {
     }
 
     window.dispatchEvent(
-      new CustomEvent("ultron:command", {
+      new CustomEvent("mayday:command", {
         detail: text,
       })
     );
@@ -62,7 +62,7 @@ export default function CommandPrompt() {
         placeholder="ENTER COMMAND..."
         autoComplete="off"
         spellCheck="false"
-        aria-label="ULTRON command input"
+        aria-label="MAYDAY command input"
       />
 
       <button

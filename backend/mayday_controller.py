@@ -6,12 +6,12 @@ from ai_engine import process_ai_command
 logger = logging.getLogger(__name__)
 
 
-class UltronController:
+class MaydayController:
     def __init__(self):
-        self.name = "ULTRON"
+        self.name = "MAYDAY"
         self.state = "IDLE"
 
-        logger.info("ULTRON Controller initialized")
+        logger.info("MAYDAY Controller initialized")
 
     def process(self, command, params=None):
         command = str(command or "").strip()
@@ -42,13 +42,13 @@ class UltronController:
             return result
 
         except Exception as error:
-            logger.exception("ULTRON controller error")
+            logger.exception("MAYDAY controller error")
 
             self.state = "IDLE"
 
             return {
                 "status": "error",
-                "response": f"ULTRON controller error: {error}",
+                "response": f"MAYDAY controller error: {error}",
                 "state": "IDLE",
                 "controller": self.name,
                 "timestamp": datetime.now().isoformat(),
@@ -63,15 +63,15 @@ class UltronController:
         }
 
 
-ultron_controller = UltronController()
+mayday_controller = MaydayController()
 
 
-def process_ultron_command(command, params=None):
-    return ultron_controller.process(
+def process_mayday_command(command, params=None):
+    return mayday_controller.process(
         command,
         params,
     )
 
 
-def get_ultron_status():
-    return ultron_controller.get_status()
+def get_mayday_status():
+    return mayday_controller.get_status()

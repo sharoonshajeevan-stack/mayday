@@ -14,13 +14,13 @@ export default function CommandStatus() {
     };
 
     window.addEventListener(
-      "ultron:command",
+      "mayday:command",
       handleCommand
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:command",
+        "mayday:command",
         handleCommand
       );
     };

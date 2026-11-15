@@ -1,7 +1,7 @@
 # ============================================================================
 # WAKE WORD DETECTOR - Simplified Version (Without Audio for Testing)
-# File: D:\ULTRON-OS\backend\wake_word_detector.py
-# Purpose: Detect wake word "Ultron" - Simplified for testing
+# File: D:\MAYDAY-OS\backend\wake_word_detector.py
+# Purpose: Detect wake word "Mayday" - Simplified for testing
 # ============================================================================
 
 import threading
@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 class WakeWordDetector:
     """
-    Detects the wake word "Ultron" from microphone input.
+    Detects the wake word "Mayday" from microphone input.
     Simplified version for testing without audio hardware.
     """
 
     def __init__(self):
         self.is_listening = False
-        self.wake_word = "ultron"
+        self.wake_word = "mayday"
         self.detector_thread = None
         self.detection_callback = None
         

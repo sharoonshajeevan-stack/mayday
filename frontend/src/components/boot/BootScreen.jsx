@@ -44,7 +44,7 @@ export default function BootScreen() {
                 letterSpacing: "4px",
               }}
             >
-              ULTRON
+              MAYDAY
             </h1>
 
             <div style={{ fontSize: "24px", lineHeight: "1.8" }}>

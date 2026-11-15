@@ -1,5 +1,5 @@
 ════════════════════════════════════════════════════════════════
-   🤖 ULTRON OS - QUICK START GUIDE
+   🤖 MAYDAY OS - QUICK START GUIDE
 ════════════════════════════════════════════════════════════════
 
 ⏱️  TAKES 3 MINUTES TO START
@@ -23,7 +23,7 @@ Wait for:
 Terminal 2 - START PYTHON BACKEND (API Server)
 ───────────────────────────────────────────────
 Command:
-  cd D:\ULTRON-OS\backend
+  cd D:\MAYDAY-OS\backend
   python main.py
 
 Wait for:
@@ -36,7 +36,7 @@ Wait for:
 Terminal 3 - START REACT FRONTEND (UI)
 ───────────────────────────────────────
 Command:
-  cd D:\ULTRON-OS\frontend
+  cd D:\MAYDAY-OS\frontend
   npm run dev
 
 Wait for:
@@ -50,7 +50,7 @@ STEP 2: OPEN BROWSER
 
 Go to: http://localhost:5173/
 
-🎉 ULTRON OS IS RUNNING!
+🎉 MAYDAY OS IS RUNNING!
 
 ════════════════════════════════════════════════════════════════
 QUICK TESTS
@@ -63,9 +63,9 @@ Test 1: AI Console (right side)
 
 Test 2: Wake Word (top-right)
   Click: "Start Listening"
-  Wait for status to say "Listening for Ultron"
+  Wait for status to say "Listening for Mayday"
   Click: "Test Detection"
-  Expected: Shows "ULTRON DETECTED!"
+  Expected: Shows "MAYDAY DETECTED!"
 
 Test 3: System Commands (center)
   Click: "Google" button
@@ -152,4 +152,4 @@ For full documentation, see: README.md
 
 Questions? Check the documentation files!
 
-🚀 WELCOME TO ULTRON OS!
+🚀 WELCOME TO MAYDAY OS!

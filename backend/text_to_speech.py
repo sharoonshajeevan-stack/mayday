@@ -1,5 +1,5 @@
 # ============================================================================
-# ULTRON OS - TEXT-TO-SPEECH ENGINE
+# MAYDAY OS - TEXT-TO-SPEECH ENGINE
 # File: backend/text_to_speech.py
 # Purpose: Local pyttsx3 or online OpenAI TTS according to voice mode.
 # ============================================================================
@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 
 from online_service import synthesize_online_speech
-from voice_mode import get_active_voice_mode
+from voice_mode import get_active_voice_mode, is_online_configured
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,13 @@ class TextToSpeechEngine:
             }
 
         mode = get_active_voice_mode()
+
+        if mode == "online" and not is_online_configured():
+            logger.warning(
+                "Online TTS not configured; falling back to local pyttsx3"
+            )
+            mode = "offline"
+
         self.processing_mode = mode
         self.current_text = str(text)
 
@@ -170,7 +177,7 @@ class TextToSpeechEngine:
             self.is_speaking = True
 
             with tempfile.NamedTemporaryFile(
-                prefix="ultron_tts_",
+                prefix="mayday_tts_",
                 suffix=".wav",
                 delete=False,
             ) as temp_file:

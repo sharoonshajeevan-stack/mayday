@@ -20,13 +20,13 @@ export default function ResponsePanel() {
     };
 
     window.addEventListener(
-      "ultron:response",
+      "mayday:response",
       handleResponse
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:response",
+        "mayday:response",
         handleResponse
       );
     };
@@ -42,7 +42,7 @@ export default function ResponsePanel() {
         <span className="response-indicator" />
 
         <span>
-          ULTRON RESPONSE
+          MAYDAY RESPONSE
         </span>
       </div>
 

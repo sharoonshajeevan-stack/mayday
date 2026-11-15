@@ -60,7 +60,7 @@
       "id": 7,
       "timestamp": "2026-08-15T00:10:17.091673",
       "user_input": "who are you",
-      "ai_response": "I am ULTRON, your local AI assistant running as part of the Ultron OS. My role is to help you with various tasks and answer any questions you may have.",
+      "ai_response": "I am MAYDAY, your local AI assistant running as part of the Mayday OS. My role is to help you with various tasks and answer any questions you may have.",
       "tags": [
         "conversation"
       ],
@@ -69,7 +69,7 @@
     {
       "id": 8,
       "timestamp": "2026-08-15T00:17:09.002752",
-      "user_input": "hey ultron",
+      "user_input": "hey mayday",
       "ai_response": "Hello! How can I assist you today? If you have any questions or tasks, feel free to ask and I will do my best to help.",
       "tags": [
         "conversation"
@@ -420,7 +420,7 @@
       "id": 43,
       "timestamp": "2026-08-15T21:19:48.429839",
       "user_input": "who are you",
-      "ai_response": "I am ULTRON, a desktop AI assistant.",
+      "ai_response": "I am MAYDAY, a desktop AI assistant.",
       "tags": [
         "conversation"
       ],
@@ -840,7 +840,7 @@
       "id": 85,
       "timestamp": "2026-08-23T10:12:45.946601",
       "user_input": "Who are you?",
-      "ai_response": "I am ULTRON, a desktop AI assistant.",
+      "ai_response": "I am MAYDAY, a desktop AI assistant.",
       "tags": [
         "conversation"
       ],
@@ -850,7 +850,7 @@
       "id": 86,
       "timestamp": "2026-08-23T10:21:58.177047",
       "user_input": "Who are you?",
-      "ai_response": "I am ULTRON, a desktop AI assistant.",
+      "ai_response": "I am MAYDAY, a desktop AI assistant.",
       "tags": [
         "conversation"
       ],

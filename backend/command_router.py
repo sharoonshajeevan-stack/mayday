@@ -90,10 +90,8 @@ FOLDER_ALIASES = {
 
 def normalize_command(text):
     text = text.strip().lower()
-    text = re.sub(r"[.,!?;:]+$", "", text).strip()
-    return text
 
-    # Remove common punctuation from voice transcription
+    # Remove common punctuation from voice transcription.
     text = re.sub(r"[.,!?;:]+$", "", text).strip()
 
     replacements = {
@@ -109,7 +107,7 @@ def normalize_command(text):
         if text.startswith(prefix):
             text = text[len(prefix):]
             break
-            
+
     return text.strip()
 
 def route_command(command):

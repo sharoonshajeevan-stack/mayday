@@ -25,13 +25,13 @@ export default function CommandHistory() {
     };
 
     window.addEventListener(
-      "ultron:command",
+      "mayday:command",
       handleCommand
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:command",
+        "mayday:command",
         handleCommand
       );
     };

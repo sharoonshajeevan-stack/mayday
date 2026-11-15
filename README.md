@@ -1,8 +1,8 @@
-# 🤖 ULTRON OS - AI Voice Assistant
+# 🤖 MAYDAY OS - AI Voice Assistant
 
 A **futuristic AI desktop assistant** for Windows 11 with voice input/output, system control, memory, and offline AI processing.
 
-![ULTRON OS](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+![MAYDAY OS](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.12.10-blue)
 ![React](https://img.shields.io/badge/React-19.2.8-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -12,7 +12,7 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 ## ✨ **Features**
 
 ### 🎤 **Voice Interaction**
-- **Wake Word Detection** - Listen for "Ultron" voice command
+- **Wake Word Detection** - Listen for "Mayday" voice command
 - **Speech-to-Text** - Convert voice to text using OpenAI Whisper
 - **Text-to-Speech** - Convert AI responses back to voice with customizable speed/volume
 - **Real-time Audio Processing** - Fast audio capture and playback
@@ -37,7 +37,7 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 - **Process Monitoring** - View running applications and system resources
 
 ### 🎨 **Beautiful UI**
-- **3D Cinematic Interface** - JARVIS/Ultron-style holographic design
+- **3D Cinematic Interface** - JARVIS/Mayday-style holographic design
 - **Real-time Status Display** - See AI state (idle, listening, thinking, responding)
 - **Interactive Components** - HUD, command history, system status
 - **Dark Theme** - Eye-friendly sci-fi aesthetic
@@ -55,7 +55,7 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 
 ### **Project Structure**
 
-ULTRON-OS/
+MAYDAY-OS/
 ├── frontend/ # React UI
 │ ├── src/
 │ │ ├── components/ # UI components (HUD, TTS, STT, etc.)
@@ -71,7 +71,7 @@ ULTRON-OS/
 │ ├── ai_engine.py # AI command processing
 │ ├── speech_to_text.py # Voice-to-text conversion
 │ ├── text_to_speech.py # Text-to-voice conversion
-│ ├── wake_word_detector.py # "Ultron" detection
+│ ├── wake_word_detector.py # "Mayday" detection
 │ ├── system_commands.py # Windows control
 │ ├── memory_system.py # Conversation storage
 │ ├── ollama_service.py # Local LLM integration
@@ -103,7 +103,7 @@ ollama pull mistral
 
 #### **2. Setup Backend**
 ```powershell
-cd D:\ULTRON-OS\backend
+cd D:\MAYDAY-OS\backend
 
 # Install dependencies
 pip install -r requirements.txt
@@ -115,7 +115,7 @@ Server runs on: `http://localhost:5000`
 
 #### **3. Setup Frontend**
 ```powershell
-cd D:\ULTRON-OS\frontend
+cd D:\MAYDAY-OS\frontend
 
 # Install dependencies
 npm install
@@ -135,7 +135,7 @@ Ollama runs on: `http://localhost:11434`
 
 ## 📖 **Usage Guide**
 
-### **Starting ULTRON OS**
+### **Starting MAYDAY OS**
 
 1. **Terminal 1:** Start Ollama
 ```powershell
@@ -144,13 +144,13 @@ Ollama runs on: `http://localhost:11434`
 
 2. **Terminal 2:** Start Python backend
 ```powershell
-   cd D:\ULTRON-OS\backend
+   cd D:\MAYDAY-OS\backend
    python main.py
 ```
 
 3. **Terminal 3:** Start React frontend
 ```powershell
-   cd D:\ULTRON-OS\frontend
+   cd D:\MAYDAY-OS\frontend
    npm run dev
 ```
 
@@ -160,7 +160,7 @@ Ollama runs on: `http://localhost:11434`
 
 #### **Wake Word Detection (Top-Right Box)**
 - Click "Start Listening" to activate wake word detection
-- Say "Ultron" to trigger
+- Say "Mayday" to trigger
 - Shows detection status and timestamp
 
 #### **Speech-to-Text (Left Side Box)**
@@ -259,7 +259,7 @@ Ollama runs on: `http://localhost:11434`
 
 ## ⚙️ **Configuration**
 
-### **Backend Settings** (`D:\ULTRON-OS\backend\.env`)
+### **Backend Settings** (`D:\MAYDAY-OS\backend\.env`)
 FLASK_ENV=development
 API_PORT=5000
 OLLAMA_HOST=http://localhost:11434
@@ -421,7 +421,7 @@ Built with ❤️ by Sharoon
 
 ## 🤝 **Contributing**
 
-Want to improve ULTRON OS? Contributions welcome!
+Want to improve MAYDAY OS? Contributions welcome!
 
 1. Fork the project
 2. Create your feature branch
@@ -448,4 +448,4 @@ Having issues? Check:
 
 ---
 
-**ULTRON OS - The future is now. 🚀**
+**MAYDAY OS - The future is now. 🚀**

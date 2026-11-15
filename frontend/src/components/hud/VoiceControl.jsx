@@ -19,7 +19,7 @@ export default function VoiceControl() {
       setAIState("IDLE");
 
       window.dispatchEvent(
-        new CustomEvent("ultron:voice-disable")
+        new CustomEvent("mayday:voice-disable")
       );
 
       return;
@@ -28,7 +28,7 @@ export default function VoiceControl() {
     setAIState("LISTENING");
 
     window.dispatchEvent(
-      new CustomEvent("ultron:voice-enable")
+      new CustomEvent("mayday:voice-enable")
     );
   };
 
@@ -40,7 +40,7 @@ export default function VoiceControl() {
     setAIState("LISTENING");
 
     window.dispatchEvent(
-      new CustomEvent("ultron:voice-start")
+      new CustomEvent("mayday:voice-start")
     );
   };
 

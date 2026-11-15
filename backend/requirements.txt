@@ -1,4 +1,27 @@
+# ============================================================================
+# MAYDAY OS - BACKEND DEPENDENCIES
+# Install with: pip install -r requirements.txt
+# ============================================================================
+
+# --- API server -------------------------------------------------------------
 Flask==3.0.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
 requests==2.31.0
+
+# --- Online AI (Gemini) -----------------------------------------------------
+google-genai>=1.0.0
+
+# --- Voice input / output ---------------------------------------------------
+numpy
+pyaudio
+pyttsx3
+
+# --- System monitoring / screenshots ---------------------------------------
+psutil
+Pillow
+
+# --- Offline speech-to-text (optional) -------------------------------------
+# Whisper is a large download (pulls in PyTorch, ~2GB). It is only needed for
+# offline voice input. Online voice mode does not require it.
+# openai-whisper==20231117

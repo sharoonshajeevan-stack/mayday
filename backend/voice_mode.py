@@ -1,5 +1,5 @@
 # ============================================================================
-# ULTRON OS - VOICE MODE MANAGER
+# MAYDAY OS - VOICE MODE MANAGER
 # File: backend/voice_mode.py
 # Purpose: Select offline, online, or automatic voice processing.
 # ============================================================================
@@ -19,7 +19,7 @@ VALID_MODES = {"offline", "online", "auto"}
 
 class VoiceModeManager:
     """
-    Controls which STT, AI, and TTS providers ULTRON uses.
+    Controls which STT, AI, and TTS providers MAYDAY uses.
 
     offline -> local Whisper + Ollama + pyttsx3
     online  -> OpenAI online STT + AI + TTS
@@ -27,10 +27,10 @@ class VoiceModeManager:
     """
 
     def __init__(self):
-        configured = os.getenv("ULTRON_VOICE_MODE", "auto").strip().lower()
+        configured = os.getenv("MAYDAY_VOICE_MODE", "auto").strip().lower()
         self.mode = configured if configured in VALID_MODES else "auto"
         if configured not in VALID_MODES:
-            logger.warning("Invalid ULTRON_VOICE_MODE '%s'; using auto", configured)
+            logger.warning("Invalid MAYDAY_VOICE_MODE '%s'; using auto", configured)
 
     def set_mode(self, mode):
         mode = str(mode or "").strip().lower()
@@ -81,3 +81,7 @@ def get_active_voice_mode():
 
 def get_voice_mode_status():
     return voice_mode_manager.get_status()
+
+
+def is_online_configured():
+    return voice_mode_manager.online_configured()

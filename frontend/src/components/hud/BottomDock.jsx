@@ -12,7 +12,7 @@ export default function BottomDock() {
         <input
           className={styles.input}
           type="text"
-          placeholder="Ask ULTRON anything..."
+          placeholder="Ask MAYDAY anything..."
         />
 
         <div className={styles.actions}>

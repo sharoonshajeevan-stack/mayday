@@ -33,23 +33,23 @@ export default function ConversationFlow() {
     };
 
     window.addEventListener(
-      "ultron:command",
+      "mayday:command",
       handleCommand
     );
 
     window.addEventListener(
-      "ultron:response",
+      "mayday:response",
       handleResponse
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:command",
+        "mayday:command",
         handleCommand
       );
 
       window.removeEventListener(
-        "ultron:response",
+        "mayday:response",
         handleResponse
       );
     };
@@ -71,7 +71,7 @@ export default function ConversationFlow() {
       {response && (
         <div className="conversation-response">
           <div className="conversation-response-label">
-            ULTRON
+            MAYDAY
           </div>
 
           <p>{response}</p>

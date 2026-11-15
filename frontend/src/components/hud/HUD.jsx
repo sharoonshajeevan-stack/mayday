@@ -20,7 +20,7 @@ import "./HUD.css";
 
 export default function HUD() {
   return (
-    <div className="ultron-hud">
+    <div className="mayday-hud">
       {/* Core AI status */}
 
       <AIStatusIndicator />
@@ -71,7 +71,7 @@ export default function HUD() {
       >
         <div className="hud-line" />
 
-        <span>ULTRON</span>
+        <span>MAYDAY</span>
 
         <small>AI SYSTEM</small>
       </div>

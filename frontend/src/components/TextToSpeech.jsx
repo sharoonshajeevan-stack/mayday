@@ -43,13 +43,13 @@ export default function TextToSpeech() {
     };
 
     window.addEventListener(
-      "ultron:response",
+      "mayday:response",
       handleResponse
     );
 
     return () => {
       window.removeEventListener(
-        "ultron:response",
+        "mayday:response",
         handleResponse
       );
 
@@ -73,7 +73,7 @@ export default function TextToSpeech() {
         pointerEvents: "none",
       }}
     >
-      {speaking ? "ULTRON SPEAKING" : "VOICE READY"}
+      {speaking ? "MAYDAY SPEAKING" : "VOICE READY"}
     </div>
   );
 }

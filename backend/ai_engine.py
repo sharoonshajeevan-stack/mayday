@@ -1,5 +1,5 @@
 # ============================================================================
-# ULTRON OS - AI ENGINE
+# MAYDAY OS - AI ENGINE
 # File: backend/ai_engine.py
 # Purpose: Route commands to local or online AI according to voice mode.
 # ============================================================================
@@ -24,15 +24,15 @@ class AIEngine:
     """
 
     def __init__(self):
-        self.engine_name = "ULTRON OS AI Engine v2.0"
+        self.engine_name = "MAYDAY OS AI Engine v2.0"
         self.is_active = True
         self.command_history = []
         self.max_history = 100
         self.system_prompt = (
-            "You are ULTRON, a desktop AI assistant. "
+            "You are MAYDAY, a desktop AI assistant. "
             "Be concise, useful, and direct. "
             "When the user asks for a computer action, describe the intended action "
-            "clearly; actual system execution remains handled by ULTRON's command router."
+            "clearly; actual system execution remains handled by MAYDAY's command router."
         )
 
         logger.info("AI Engine initialized")
@@ -127,7 +127,7 @@ class AIEngine:
             )
 
         return generate_ollama_response(
-            f"{self.system_prompt}\n\nUser: {command}\nULTRON:"
+            f"{self.system_prompt}\n\nUser: {command}\nMAYDAY:"
         )
 
     def _is_greeting(self, command):
@@ -138,36 +138,47 @@ class AIEngine:
         )
 
     def _handle_greeting(self, command):
-        return "Hello. I'm ULTRON. How can I help you?"
+        return "Hello. I'm MAYDAY. How can I help you?"
 
     def _is_status_request(self, command):
         keywords = ["status", "how are you", "are you alive", "system status"]
         return any(keyword in command for keyword in keywords)
 
     def _handle_status_request(self):
-        return {
-            "system": "ONLINE",
-            "ai_engine": "ACTIVE",
-            "voice_mode": get_voice_mode_status(),
-            "online_service": get_online_status(),
-            "ollama": get_ollama_status(),
-        }
+        voice = get_voice_mode_status()
+        online = get_online_status()
+        ollama = get_ollama_status()
+
+        return "\n".join([
+            "MAYDAY STATUS",
+            "• System: ONLINE",
+            "• AI engine: ACTIVE",
+            f"• Voice mode: {voice.get('active_mode', 'unknown')}",
+            (
+                "• Online AI: "
+                f"{'configured' if online.get('configured') else 'not configured'}"
+                f" ({online.get('provider', 'n/a')})"
+            ),
+            f"• Ollama: {ollama.get('status', 'unknown')}",
+        ])
 
     def _is_help_request(self, command):
         keywords = ["help", "commands", "what can you do", "capabilities"]
         return any(keyword in command for keyword in keywords)
 
     def _handle_help_request(self):
-        return {
-            "available_commands": [
-                "hello - Greet ULTRON",
-                "status - Get system status",
-                "help - Show capabilities",
-                "time - Get current time",
-                "natural language - Send to the active AI provider",
-            ],
-            "voice_modes": ["offline", "online", "auto"],
-        }
+        return (
+            "Here is what I can do:\n"
+            "• hello / hi - greet me\n"
+            "• status - show system status\n"
+            "• time - show the current date and time\n"
+            "• open <app> - launch an app (notepad, chrome, explorer, cmd)\n"
+            "• open <site> - open a website (youtube, google, github)\n"
+            "• screenshot - capture the screen\n"
+            "• show processes / system info - inspect this PC\n"
+            "• lock / sleep / shutdown / restart - power controls\n"
+            "• or just talk to me in natural language."
+        )
 
     def _is_time_request(self, command):
         keywords = ["time", "what time", "current time", "what's the time"]
@@ -175,12 +186,9 @@ class AIEngine:
 
     def _handle_time_request(self):
         now = datetime.now()
-        return {
-            "time": now.strftime("%H:%M:%S"),
-            "date": now.strftime("%Y-%m-%d"),
-            "timezone": "System Local",
-            "formatted": now.strftime("%A, %B %d, %Y at %I:%M %p"),
-        }
+        return now.strftime(
+            "It is %I:%M %p on %A, %B %d, %Y."
+        )
 
     def _add_to_history(self, entry):
         self.command_history.append(entry)
