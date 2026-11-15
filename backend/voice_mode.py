@@ -21,8 +21,8 @@ class VoiceModeManager:
     """
     Controls which STT, AI, and TTS providers MAYDAY uses.
 
-    offline -> local Whisper + Ollama + pyttsx3
-    online  -> OpenAI online STT + AI + TTS
+    offline -> Faster-Whisper + Ollama + Kokoro
+    online  -> online STT + AI (Gemini) + TTS
     auto    -> online when an API key is configured, otherwise offline
     """
 

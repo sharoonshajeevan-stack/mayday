@@ -13,8 +13,8 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 
 ### 🎤 **Voice Interaction**
 - **Wake Word Detection** - Listen for "Mayday" voice command
-- **Speech-to-Text** - Convert voice to text using OpenAI Whisper
-- **Text-to-Speech** - Convert AI responses back to voice with customizable speed/volume
+- **Speech-to-Text** - Convert voice to text locally with Faster-Whisper
+- **Text-to-Speech** - Warm, natural female voice with Kokoro-82M
 - **Real-time Audio Processing** - Fast audio capture and playback
 
 ### 🤖 **AI Intelligence**
@@ -49,8 +49,8 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 ### **Tech Stack**
 - **Frontend:** React 19.2.8 + Vite + Three.js (3D graphics)
 - **Backend:** Python 3.12.10 + Flask API
-- **AI:** Ollama (Mistral model) + OpenAI Whisper
-- **Voice:** pyttsx3 (Text-to-Speech) + PyAudio (Voice capture)
+- **AI:** Ollama (local models) + Gemini (online)
+- **Voice:** Faster-Whisper (speech-to-text) + Kokoro-82M (text-to-speech) + PyAudio (voice capture)
 - **Database:** JSON file storage (local)
 
 ### **Project Structure**
@@ -299,14 +299,23 @@ Error: No audio device found
 2. Ensure microphone is enabled
 3. Check PyAudio installation: `pip install --upgrade pyaudio`
 
-### **Issue: Whisper model not found**
+### **Issue: Faster-Whisper model not found**
 
 Error: Model not found
 
 **Solution:**
-1. Install Whisper: `pip install openai-whisper`
-2. Download model: `whisper --model base`
-3. May take 5-10 minutes first run
+1. Install Faster-Whisper: `pip install faster-whisper`
+2. The `base` model downloads automatically from Hugging Face on first use (~150 MB)
+3. The first run may take a few minutes depending on your connection
+
+### **Issue: Kokoro voice model not found**
+
+Error: Voice pack missing
+
+**Solution:**
+1. Install Kokoro: `pip install kokoro`
+2. The voice pack downloads automatically from Hugging Face on first use (~330 MB)
+3. If text-to-speech is silent, check the voice ID is valid (`GET /api/tts/voices`)
 
 ### **Issue: Port already in use**
 
@@ -384,10 +393,10 @@ taskkill /PID <PID> /F
 Flask==3.0.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
-pyaudio==0.2.13
-openai-whisper==20231117
-pyttsx3==2.90
-psutil==5.9.6
+pyaudio
+faster-whisper>=1.2.1
+kokoro>=0.9.4
+psutil
 requests==2.31.0
 
 
@@ -402,8 +411,9 @@ framer-motion@13.0.0
 
 ### **External Services**
 - **Ollama** (local LLM)
-- **Whisper** (speech-to-text)
-- **pyttsx3** (text-to-speech)
+- **Faster-Whisper** (speech-to-text, local)
+- **Kokoro-82M** (text-to-speech, local)
+- **Google Gemini** (optional online AI)
 
 ---
 

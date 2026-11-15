@@ -56,45 +56,45 @@ Go to: http://localhost:5173/
 QUICK TESTS
 ════════════════════════════════════════════════════════════════
 
-Test 1: AI Console (right side)
+Test 1: Text Command
   Type: "hello"
-  Click: "Send Test"
-  Expected: Response appears
+  Press: Enter
+  Expected: MAYDAY replies on screen and speaks it aloud
 
-Test 2: Wake Word (top-right)
-  Click: "Start Listening"
-  Wait for status to say "Listening for Mayday"
-  Click: "Test Detection"
-  Expected: Shows "MAYDAY DETECTED!"
+Test 2: Voice Input (mic button, bottom-right)
+  Click: the round microphone button
+  Say: "What time is it?"
+  Stop talking and wait ~1.5 seconds
+  Expected: The transcript appears, then MAYDAY answers aloud
 
-Test 3: System Commands (center)
-  Click: "Google" button
-  Expected: Browser opens Google
+Test 3: Open Something
+  Type: "open youtube"
+  Press: Enter
+  Expected: Browser opens YouTube
 
-Test 4: Speech-to-Text (left side)
-  Click: "Start Recording"
-  Say: "Hello world"
-  Click: "Stop Recording"
-  Expected: Shows transcript
+Test 4: System Info
+  Type: "status"
+  Press: Enter
+  Expected: A short spoken summary + the detailed status on screen
 
 ════════════════════════════════════════════════════════════════
 FEATURES TO TRY
 ════════════════════════════════════════════════════════════════
 
-🎤 Voice Input
+🎤 Voice Input (Faster-Whisper)
   - Microphone records your voice
-  - Converts to text
-  - AI understands commands
+  - Transcribed locally on your PC
+  - Stops automatically when you stop talking
 
 🤖 AI Response
-  - Uses offline Mistral model
+  - Uses Gemini online (or Ollama offline)
   - Provides intelligent responses
-  - No internet needed
+  - Falls back to offline when there is no internet
 
-🔊 Voice Output
-  - AI speaks responses back to you
-  - Customizable speed and volume
-  - Natural-sounding voice
+🔊 Voice Output (Kokoro-82M)
+  - Warm, natural female voice
+  - Speaks a short version of each reply
+  - Detailed text still shown on screen
 
 🖥️  System Control
   - Launch applications

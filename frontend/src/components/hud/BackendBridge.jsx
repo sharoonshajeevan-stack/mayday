@@ -8,6 +8,21 @@ export default function BackendBridge() {
   useEffect(() => {
     let mounted = true;
 
+    // Show the full text on screen, but let MAYDAY speak a shorter version.
+    const emitResponse = (text, spoken) => {
+      window.dispatchEvent(
+        new CustomEvent("mayday:response", {
+          detail: text,
+        }),
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("mayday:speak", {
+          detail: spoken || text,
+        }),
+      );
+    };
+
     const handleCommand = async (event) => {
       const command = String(event.detail || "").trim();
 
@@ -29,12 +44,8 @@ export default function BackendBridge() {
         if (!result || !result.success) {
           setAIState("IDLE");
 
-          window.dispatchEvent(
-            new CustomEvent("mayday:response", {
-              detail:
-                result?.error ||
-                "MAYDAY backend connection failed.",
-            }),
+          emitResponse(
+            result?.error || "MAYDAY backend connection failed.",
           );
 
           return;
@@ -45,11 +56,7 @@ export default function BackendBridge() {
         if (!data) {
           setAIState("IDLE");
 
-          window.dispatchEvent(
-            new CustomEvent("mayday:response", {
-              detail: "MAYDAY received an empty backend response.",
-            }),
-          );
+          emitResponse("MAYDAY received an empty backend response.");
 
           return;
         }
@@ -67,11 +74,7 @@ export default function BackendBridge() {
           setAIState("RESPONDING");
         }
 
-        window.dispatchEvent(
-          new CustomEvent("mayday:response", {
-            detail: response,
-          }),
-        );
+        emitResponse(response, data.spoken);
       } catch (error) {
         if (!mounted) {
           return;
@@ -79,11 +82,7 @@ export default function BackendBridge() {
 
         setAIState("IDLE");
 
-        window.dispatchEvent(
-          new CustomEvent("mayday:response", {
-            detail: `Backend error: ${error.message}`,
-          }),
-        );
+        emitResponse(`Backend error: ${error.message}`);
       }
     };
 

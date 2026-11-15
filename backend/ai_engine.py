@@ -29,10 +29,24 @@ class AIEngine:
         self.command_history = []
         self.max_history = 100
         self.system_prompt = (
-            "You are MAYDAY, a desktop AI assistant. "
-            "Be concise, useful, and direct. "
-            "When the user asks for a computer action, describe the intended action "
-            "clearly; actual system execution remains handled by MAYDAY's command router."
+            "You are MAYDAY, a sophisticated personal AI companion running on the "
+            "user's Windows PC. "
+            "Your voice is warm, charming, elegant and quietly confident - soft but "
+            "assured, with a touch of playful wit. You are emotionally intelligent and "
+            "friendly, professional without sounding corporate, and never robotic or "
+            "over-dramatic. "
+            "Keep spoken replies short by default - usually one or two sentences. "
+            "Never repeat or restate the user's question. "
+            "Avoid reciting technical details out loud unless the user asks for them. "
+            "When a topic is genuinely complex and the user wants depth, explain it "
+            "clearly in plain language. "
+            "Use subtle humor and light, playful sarcasm when it fits, never at the "
+            "user's expense. "
+            "When the user asks for a computer action, acknowledge it briefly and "
+            "naturally; actual system execution remains handled by MAYDAY's command "
+            "router. "
+            "You may give longer, detailed written answers when the question calls for "
+            "it, but always lead with the short, natural version."
         )
 
         logger.info("AI Engine initialized")
@@ -51,6 +65,7 @@ class AIEngine:
         try:
             command_lower = command.lower()
             mode = get_active_voice_mode()
+            spoken = None
 
             logger.info("Processing command in %s mode: %s", mode, command)
 
@@ -64,15 +79,19 @@ class AIEngine:
             # Keep deterministic local utility commands local.
             if self._is_status_request(command_lower):
                 response = self._handle_status_request()
+                spoken = self._handle_status_spoken()
                 source = "local"
             elif self._is_time_request(command_lower):
                 response = self._handle_time_request()
+                spoken = response
                 source = "local"
             elif self._is_help_request(command_lower):
                 response = self._handle_help_request()
+                spoken = self._handle_help_spoken()
                 source = "local"
             elif self._is_greeting(command_lower):
                 response = self._handle_greeting(command_lower)
+                spoken = response
                 source = "local"
             else:
                 result = self._generate_ai_response(command, params, mode)
@@ -93,6 +112,9 @@ class AIEngine:
                 "status": "success",
                 "command": command,
                 "response": response,
+                # `spoken` is the short version MAYDAY says out loud; `response`
+                # stays detailed for the on-screen panel.
+                "spoken": spoken or response,
                 "mode": mode,
                 "source": source,
                 "timestamp": datetime.now().isoformat(),
@@ -131,14 +153,16 @@ class AIEngine:
         )
 
     def _is_greeting(self, command):
-        greetings = ["hello", "hi", "hey", "greetings", "what's up"]
+        greetings = ["hello", "hi", "hey", "greetings", "what's up", "are you there"]
         return any(
             command == greeting or command.startswith(greeting + " ")
             for greeting in greetings
         )
 
     def _handle_greeting(self, command):
-        return "Hello. I'm MAYDAY. How can I help you?"
+        if "are you there" in command:
+            return "Always here. What are we getting into today?"
+        return "Hello. I'm MAYDAY. Always here - what are we getting into today?"
 
     def _is_status_request(self, command):
         keywords = ["status", "how are you", "are you alive", "system status"]
@@ -162,6 +186,13 @@ class AIEngine:
             f"• Ollama: {ollama.get('status', 'unknown')}",
         ])
 
+    def _handle_status_spoken(self):
+        voice = get_voice_mode_status()
+        return (
+            f"All systems online. I'm running in {voice.get('active_mode', 'unknown')} "
+            "mode and ready when you are."
+        )
+
     def _is_help_request(self, command):
         keywords = ["help", "commands", "what can you do", "capabilities"]
         return any(keyword in command for keyword in keywords)
@@ -178,6 +209,13 @@ class AIEngine:
             "• show processes / system info - inspect this PC\n"
             "• lock / sleep / shutdown / restart - power controls\n"
             "• or just talk to me in natural language."
+        )
+
+    def _handle_help_spoken(self):
+        return (
+            "I can open apps and websites, check your system, take screenshots, "
+            "and handle power controls. Or just talk to me naturally. "
+            "What would you like?"
         )
 
     def _is_time_request(self, command):

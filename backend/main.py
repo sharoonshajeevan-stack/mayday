@@ -13,9 +13,9 @@ import logging
 from datetime import datetime
 from wake_word_detector import start_wake_word_detection, stop_wake_word_detection, get_detector_status
 from ai_engine import process_ai_command, get_ai_status, get_command_history, clear_command_history
-from speech_to_text import start_recording, stop_recording, get_stt_status, get_stt_transcript, clear_stt_transcript
+from speech_to_text import start_recording, stop_recording, get_stt_status, get_stt_transcript, clear_stt_transcript, preload_stt_model
 from system_commands import execute_shutdown, execute_restart, execute_launch_app, execute_open_url, execute_get_processes, execute_get_system_info, set_command_permission, get_command_permissions
-from text_to_speech import speak_text_async, stop_speaking, set_voice, set_speech_rate, set_volume, get_voices, get_tts_status
+from text_to_speech import speak_text_async, stop_speaking, set_voice, set_speech_rate, set_volume, get_voices, get_tts_status, preload_tts_model
 from memory_system import add_memory, get_recent_memories, search_memories, get_context, get_memory_status, get_memory_stats, clear_session, clear_all, export_all_memories
 from ollama_service import get_ollama_status, get_ollama_models, generate_ollama_response, chat_with_ollama, set_ollama_model
 from voice_mode import get_voice_mode_status, set_voice_mode
@@ -522,6 +522,7 @@ def process_command():
         if action:
             formatted = format_action_result(action)
             formatted["command"] = command
+            formatted.setdefault("spoken", formatted.get("response"))
             formatted["timestamp"] = datetime.now().isoformat()
 
             logger.info(f"Command routed to system action: {command}")
@@ -531,10 +532,12 @@ def process_command():
         result = process_ai_command(command, params)
 
         if result.get("status") != "success":
+            error_text = result.get("error", "AI request failed.")
             return jsonify({
                 "status": "error",
                 "command": command,
-                "response": result.get("error", "AI request failed."),
+                "response": error_text,
+                "spoken": error_text,
                 "state": "IDLE",
                 "source": result.get("source"),
                 "timestamp": datetime.now().isoformat()
@@ -544,6 +547,9 @@ def process_command():
             "status": "success",
             "command": command,
             "response": stringify_response(result.get("response")),
+            "spoken": stringify_response(
+                result.get("spoken") or result.get("response")
+            ),
             "mode": result.get("mode"),
             "source": result.get("source"),
             "state": "RESPONDING",
@@ -1529,7 +1535,35 @@ if __name__ == '__main__':
     logger.info(f"Server: {API_HOST}:{API_PORT}")
     logger.info(f"API Endpoint: http://localhost:{API_PORT}/api")
     logger.info("=" * 80)
-    
+
+    # Warm up the local voice models in the background so the first spoken
+    # reply is not delayed by model loading. This runs only in the reloader
+    # child process (Werkzeug sets WERKZEUG_RUN_MAIN="true" there), so the
+    # models are not loaded twice.
+    preload_enabled = os.getenv("MAYDAY_PRELOAD_VOICE", "true").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+    if preload_enabled and os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        import threading
+
+        def _warm_up_voice_models():
+            try:
+                logger.info("Warming up Faster-Whisper (STT) model...")
+                preload_stt_model()
+                logger.info("Warming up Kokoro (TTS) model...")
+                preload_tts_model()
+                logger.info("Voice model warm-up complete")
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Voice model warm-up failed: %s", exc)
+
+        threading.Thread(
+            target=_warm_up_voice_models,
+            name="voice-preload",
+            daemon=True,
+        ).start()
+
     # Run Flask server
     app.run(
         host=API_HOST,

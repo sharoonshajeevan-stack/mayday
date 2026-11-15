@@ -106,10 +106,10 @@ Create `D:\MAYDAY-OS\backend\requirements.txt`:
 Flask==3.0.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
-pyaudio==0.2.13
-openai-whisper==20231117
-pyttsx3==2.90
-psutil==5.9.6
+pyaudio
+faster-whisper>=1.2.1
+kokoro>=0.9.4
+psutil
 requests==2.31.0
 
 
@@ -312,10 +312,20 @@ Ollama is already running. Just proceed!
 3. Test in Windows Sound settings
 4. Restart PyAudio: `pip install --upgrade pyaudio`
 
-### **Whisper Model Not Found**
+### **Faster-Whisper Model Not Found**
 ```powershell
-pip install --upgrade openai-whisper
+pip install --upgrade faster-whisper
 ```
+The model downloads automatically on first use. If it fails, check your internet
+connection and try `WHISPER_MODEL=base` in `backend/.env`.
+
+### **Kokoro Voice Not Found / No Audio**
+```powershell
+pip install --upgrade kokoro
+```
+The voice pack downloads automatically on first use. List the available voices
+with `GET http://localhost:5000/api/tts/voices` and set a valid one in
+`KOKORO_VOICE` inside `backend/.env`.
 
 ### **Ollama "Model Not Found"**
 ```powershell

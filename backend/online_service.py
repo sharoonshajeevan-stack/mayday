@@ -159,7 +159,9 @@ class OnlineService:
             system_instruction = (
                 f"{system_prompt}\n\n"
                 "You are operating in MAYDAY online mode. "
-                "Be concise, useful, and direct."
+                "Stay in character as MAYDAY: warm, charming, and concise. "
+                "Keep spoken replies short by default, and never repeat the user's "
+                "question back to them."
             )
 
             if isinstance(input_data, str):

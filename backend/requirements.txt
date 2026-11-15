@@ -15,13 +15,24 @@ google-genai>=1.0.0
 # --- Voice input / output ---------------------------------------------------
 numpy
 pyaudio
-pyttsx3
+
+# --- Offline speech-to-text (Faster-Whisper) --------------------------------
+# Faster-Whisper is a CTranslate2 reimplementation of Whisper. On CPU it runs
+# comfortably with int8 quantization. The "base" model is downloaded from
+# Hugging Face on first use (~150 MB).
+faster-whisper>=1.2.1
+
+# --- Offline text-to-speech (Kokoro-82M) ------------------------------------
+# Kokoro is a small, natural-sounding TTS model. It pulls in PyTorch (CPU) and
+# downloads its voice pack (~330 MB) from Hugging Face on first use.
+kokoro>=0.9.4
 
 # --- System monitoring / screenshots ---------------------------------------
 psutil
 Pillow
 
-# --- Offline speech-to-text (optional) -------------------------------------
-# Whisper is a large download (pulls in PyTorch, ~2GB). It is only needed for
-# offline voice input. Online voice mode does not require it.
-# openai-whisper==20231117
+# --- Legacy / replaced engines (kept for reference) -------------------------
+# pyttsx3  - replaced by Kokoro for a warmer, more natural female voice.
+# openai-whisper - replaced by Faster-Whisper (much faster on CPU).
+# pip install pyttsx3
+# pip install openai-whisper==20231117
