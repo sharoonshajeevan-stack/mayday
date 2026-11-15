@@ -137,6 +137,7 @@ OLLAMA_HOST=http://localhost:11434
 Copy all `.py` files from documentation into backend folder:
 - main.py
 - ai_engine.py
+- personality.py
 - speech_to_text.py
 - text_to_speech.py
 - wake_word_detector.py
@@ -292,6 +293,64 @@ fetch('http://localhost:5000/api/ollama/generate', {
 ```
 
 Should get response from Mistral AI!
+
+---
+
+## 🎭 **Personality**
+
+MAYDAY's character lives in one place: `backend/personality.py`. It builds the
+system prompt used by **both** the online (Gemini) and offline (Ollama) engines
+and adds short, contextual commentary to deterministic system actions (opening
+apps/sites, playing media, screenshots, errors, ...). No extra language model is
+loaded for it.
+
+### **Defaults**
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `personality_enabled` | `true` | Master switch for the personality layer |
+| `sarcasm_level` | `70` | 0-100; naturally sarcastic, never rude |
+| `humour_level` | `75` | 0-100; funny without forcing it |
+| `commentary_frequency` | `balanced` | `off` / `minimal` / `balanced` / `chatty` |
+| `spoken_response_length` | `short` | `short` / `medium` / `detailed` |
+| `quiet_mode` | `false` | Suppresses optional commentary |
+| `voice` | `bf_emma` | Kokoro voice (natural British English female) |
+
+Settings are saved to `backend/personality.json` (git-ignored) and survive a
+restart.
+
+### **Settings panel**
+
+Open the HUD and click the gear button labelled **PERSONALITY** (top-right,
+under the frame corner). From there you can toggle personality/quiet mode,
+adjust the sarcasm and humour levels, pick the commentary frequency and spoken
+length, choose the voice, and reset everything to the defaults.
+
+### **API**
+
+```powershell
+# Read the current settings
+GET  http://localhost:5000/api/personality
+
+# Update one or more settings
+POST http://localhost:5000/api/personality
+     {"sarcasm_level": 50, "commentary_frequency": "minimal"}
+
+# Restore the defaults
+POST http://localhost:5000/api/personality
+     {"reset": true}
+```
+
+### **Behaviour notes**
+
+- Actions are always executed first; MAYDAY only comments *after* the result is
+  known and never claims success the result did not confirm.
+- Written replies may stay detailed; the **spoken** reply follows
+  `spoken_response_length` and stays short by default.
+- Commentary has a cooldown (default 12s) so repeated commands do not trigger a
+  fresh remark every time; errors always get one.
+- Follow-ups keep context: say "open YouTube", then "play Arijit Singh" and
+  MAYDAY searches YouTube for it.
 
 ---
 

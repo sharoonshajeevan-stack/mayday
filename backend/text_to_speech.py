@@ -105,11 +105,15 @@ class TextToSpeechEngine:
         # pyttsx3-style rate (50-300). 150 == normal speed.
         self.rate = int(max(50, min(300, round(self.speed * 150))))
 
-        self._pipeline = None
+        # Kokoro needs one pipeline per language code ('a' = American English,
+        # 'b' = British English, ...). The voice prefix selects the language, so
+        # MAYDAY can switch accents without restarting the server.
+        self._pipelines = {}
         self._pipeline_lock = threading.Lock()
         self._speak_guard = threading.Lock()
         self._stop_requested = False
         self._voices_cache = None
+        self._threads_configured = False
 
         logger.info(
             "Text-to-Speech Engine initialized (Kokoro voice=%s, lang=%s, speed=%.2f)",
@@ -121,16 +125,30 @@ class TextToSpeechEngine:
     # ------------------------------------------------------------------
     # Kokoro lifecycle
     # ------------------------------------------------------------------
-    def _load_pipeline(self):
-        """Create the Kokoro pipeline once and reuse it."""
+    def _lang_for_voice(self, voice):
+        """Derive the Kokoro language code from a voice id (af_/bf_/...)."""
+        voice = str(voice or "").strip().lower()
+
+        if len(voice) >= 2 and voice[0].isalpha():
+            return voice[0]
+
+        return self.lang_code
+
+    def _load_pipeline(self, lang_code=None):
+        """Create (and cache) the Kokoro pipeline for a language code."""
         global KOKORO_AVAILABLE
 
-        if self._pipeline is not None:
-            return self._pipeline
+        if lang_code is None:
+            lang_code = self._lang_for_voice(self._resolve_voice(self.voice))
+
+        cached = self._pipelines.get(lang_code)
+        if cached is not None:
+            return cached
 
         with self._pipeline_lock:
-            if self._pipeline is not None:
-                return self._pipeline
+            cached = self._pipelines.get(lang_code)
+            if cached is not None:
+                return cached
 
             try:
                 from kokoro import KPipeline
@@ -145,32 +163,36 @@ class TextToSpeechEngine:
 
             # Kokoro is a small model; a handful of threads is faster than
             # saturating every logical core (over-subscription slows it down).
-            try:
-                import torch
+            if not self._threads_configured:
+                try:
+                    import torch
 
-                threads = max(1, min(os.cpu_count() or 4, 8))
-                torch.set_num_threads(threads)
-                logger.info("Kokoro torch threads set to %d", threads)
-            except Exception as exc:
-                logger.warning("Could not set torch thread count: %s", exc)
+                    threads = max(1, min(os.cpu_count() or 4, 8))
+                    torch.set_num_threads(threads)
+                    logger.info("Kokoro torch threads set to %d", threads)
+                except Exception as exc:
+                    logger.warning("Could not set torch thread count: %s", exc)
+
+                self._threads_configured = True
 
             try:
                 logger.info(
                     "Loading Kokoro pipeline (lang_code=%s, device=%s)...",
-                    self.lang_code,
+                    lang_code,
                     self.device,
                 )
-                self._pipeline = KPipeline(
-                    lang_code=self.lang_code,
+                pipeline = KPipeline(
+                    lang_code=lang_code,
                     repo_id=self.repo_id,
                     device=self.device,
                 )
-                logger.info("Kokoro pipeline loaded and cached")
+                self._pipelines[lang_code] = pipeline
+                logger.info("Kokoro pipeline (%s) loaded and cached", lang_code)
             except Exception as exc:
                 logger.error("Error loading Kokoro pipeline: %s", exc)
-                self._pipeline = None
+                return None
 
-        return self._pipeline
+        return self._pipelines.get(lang_code)
 
     # ------------------------------------------------------------------
     # Voice discovery / selection
@@ -325,7 +347,8 @@ class TextToSpeechEngine:
             self._speak_guard.release()
 
     def _speak_kokoro(self, text):
-        pipeline = self._load_pipeline()
+        voice = self._resolve_voice(self.voice)
+        pipeline = self._load_pipeline(self._lang_for_voice(voice))
 
         if pipeline is None:
             return {
@@ -335,7 +358,6 @@ class TextToSpeechEngine:
                 "timestamp": datetime.now().isoformat(),
             }
 
-        voice = self._resolve_voice(self.voice)
         pieces = self._speech_pieces(text)
 
         if not pieces:
@@ -712,7 +734,8 @@ class TextToSpeechEngine:
             "processing_mode": self.processing_mode,
             "engine": "kokoro",
             "kokoro_available": bool(KOKORO_AVAILABLE),
-            "model_loaded": self._pipeline is not None,
+            "model_loaded": bool(self._pipelines),
+            "loaded_languages": sorted(self._pipelines.keys()),
             "voice": self.voice,
             "rate": self.rate,
             "speed": self.speed,

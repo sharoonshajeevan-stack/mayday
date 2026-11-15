@@ -811,6 +811,54 @@ export const clearAllMemory = async () => {
   }
 };
 // ============================================================================
+// PERSONALITY SETTINGS FUNCTIONS
+// ============================================================================
+
+export const getPersonalitySettings = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/personality`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Personality settings:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Get Personality Failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updatePersonalitySettings = async (patch) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/personality`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Personality updated:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Update Personality Failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+// ============================================================================
 // OLLAMA LLM FUNCTIONS
 // ============================================================================
 
@@ -932,4 +980,6 @@ export default {
   testAPI,
   processCommand,
   apiCall,
+  getPersonalitySettings,
+  updatePersonalitySettings,
 };

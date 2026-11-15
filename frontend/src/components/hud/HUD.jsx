@@ -15,6 +15,7 @@ import ThinkingIndicator from "./ThinkingIndicator";
 import ConversationFlow from "./ConversationFlow";
 import StateTransition from "./StateTransition";
 import ResponseStateController from "./ResponseStateController";
+import PersonalitySettings from "./PersonalitySettings";
 
 import "./HUD.css";
 
@@ -56,6 +57,8 @@ export default function HUD() {
       <Calendar />
 
       <ConnectionStatus />
+
+      <PersonalitySettings />
 
       {/* State controllers */}
 

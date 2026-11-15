@@ -22,6 +22,13 @@ from voice_mode import get_voice_mode_status, set_voice_mode
 from online_service import get_online_status
 from command_router import route_command
 from action_result import format_action_result
+from personality import (
+    comment_on_action,
+    get_settings as get_personality_settings,
+    update_settings as update_personality_settings,
+    reset_settings as reset_personality_settings,
+    get_status as get_personality_status,
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -80,6 +87,28 @@ def stringify_response(value):
         )
 
     return str(value)
+
+
+def _remember_conversation(user_input, ai_response, tags=None):
+    """Store an exchange so MAYDAY can follow up on it later."""
+    try:
+        add_memory(
+            str(user_input or "")[:2000],
+            str(ai_response or "")[:4000],
+            tags or [],
+        )
+    except Exception as exc:  # noqa: BLE001 - memory is best-effort
+        logger.warning("Could not record conversation memory: %s", exc)
+
+
+def apply_personality_voice():
+    """Apply the voice configured in the personality settings (if any)."""
+    try:
+        voice = get_personality_settings().get("voice")
+        if voice:
+            set_voice(voice)
+    except Exception as exc:  # noqa: BLE001 - never block a request
+        logger.warning("Could not apply personality voice: %s", exc)
 
 
 # ============================================================================
@@ -397,25 +426,51 @@ def voice_process():
                 "message": "No voice command/transcript available"
             }), 400
 
-        ai_result = process_ai_command(
-            text,
-            data.get('params') or {}
-        )
+        # Deterministic actions first, so a spoken command behaves exactly like
+        # a typed one and never bypasses the command router.
+        action = route_command(text)
 
-        if ai_result.get('status') != 'success':
-            return jsonify({
-                "status": "error",
-                "stage": "ai",
-                "message": ai_result.get("error", "AI processing failed"),
-                "ai": ai_result,
-                "timestamp": datetime.now().isoformat()
-            }), 400
+        if action:
+            formatted = format_action_result(action)
+            commentary = comment_on_action(
+                action,
+                text,
+                base_message=formatted.get("response") or "Command completed.",
+            )
+            response_text = commentary["response"]
+            spoken_text = commentary["spoken"]
+            ai_result = {
+                "status": "success",
+                "command": text,
+                "response": response_text,
+                "spoken": spoken_text,
+                "source": "system",
+                "kind": commentary["kind"],
+                "timestamp": datetime.now().isoformat(),
+            }
+        else:
+            ai_result = process_ai_command(
+                text,
+                data.get('params') or {}
+            )
 
-        response_text = ai_result.get("response")
-        if isinstance(response_text, (dict, list)):
-            response_text = str(response_text)
+            if ai_result.get('status') != 'success':
+                return jsonify({
+                    "status": "error",
+                    "stage": "ai",
+                    "message": ai_result.get("error", "AI processing failed"),
+                    "ai": ai_result,
+                    "timestamp": datetime.now().isoformat()
+                }), 400
 
-        tts_result = speak_text_async(str(response_text))
+            response_text = stringify_response(ai_result.get("response"))
+            spoken_text = stringify_response(
+                ai_result.get("spoken") or ai_result.get("response")
+            )
+
+        _remember_conversation(text, response_text)
+
+        tts_result = speak_text_async(spoken_text or response_text)
 
         return jsonify({
             "status": "success",
@@ -445,6 +500,74 @@ def voice_online_status():
         }), 200
     except Exception as e:
         logger.error(f"Error getting online service status: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
+
+
+# ============================================================================
+# PERSONALITY SETTINGS ENDPOINTS
+# ============================================================================
+
+@app.route('/api/personality', methods=['GET'])
+def personality_get():
+    """
+    Get MAYDAY's personality settings.
+
+    Response: {"status": "success", "settings": {...}, "defaults": {...}}
+    """
+    try:
+        status = get_personality_status()
+
+        return jsonify({
+            "status": "success",
+            "settings": status["settings"],
+            "defaults": status["defaults"],
+            "personality": status,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error getting personality settings: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
+
+
+@app.route('/api/personality', methods=['POST'])
+def personality_set():
+    """
+    Update MAYDAY's personality settings.
+
+    Request: {"sarcasm_level": 70, "commentary_frequency": "balanced", ...}
+             {"reset": true}  -> restore the defaults
+
+    Response: {"status": "success", "settings": {...}}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+
+        if data.get('reset'):
+            settings = reset_personality_settings()
+            logger.info("Personality settings reset to defaults")
+        else:
+            patch = {k: v for k, v in data.items() if k != 'reset'}
+            settings = update_personality_settings(patch)
+            logger.info(f"Personality settings updated: {sorted(patch.keys())}")
+
+        # Keep the TTS voice in sync with the personality settings.
+        apply_personality_voice()
+
+        return jsonify({
+            "status": "success",
+            "settings": settings,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating personality settings: {e}")
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -522,10 +645,38 @@ def process_command():
         if action:
             formatted = format_action_result(action)
             formatted["command"] = command
-            formatted.setdefault("spoken", formatted.get("response"))
+
+            base_message = (
+                formatted.get("response")
+                or action.get("message")
+                or "Command completed."
+            )
+
+            # Personality adds a short, contextual remark *after* the action
+            # result exists, so it never claims success the result did not.
+            commentary = comment_on_action(
+                action,
+                command,
+                base_message=base_message,
+            )
+
+            formatted["response"] = commentary["response"]
+            formatted["spoken"] = commentary["spoken"]
+            formatted["kind"] = commentary["kind"]
+            formatted["commented"] = commentary["commented"]
             formatted["timestamp"] = datetime.now().isoformat()
 
-            logger.info(f"Command routed to system action: {command}")
+            _remember_conversation(
+                command,
+                commentary["response"],
+                tags=["action", commentary["kind"]],
+            )
+
+            logger.info(
+                "Command routed to system action (%s): %s",
+                commentary["kind"],
+                command,
+            )
             return jsonify(formatted), 200
 
         # 2) Assistant / AI engine.
@@ -543,13 +694,18 @@ def process_command():
                 "timestamp": datetime.now().isoformat()
             }), 200
 
+        response_text = stringify_response(result.get("response"))
+        spoken_text = stringify_response(
+            result.get("spoken") or result.get("response")
+        )
+
+        _remember_conversation(command, response_text)
+
         return jsonify({
             "status": "success",
             "command": command,
-            "response": stringify_response(result.get("response")),
-            "spoken": stringify_response(
-                result.get("spoken") or result.get("response")
-            ),
+            "response": response_text,
+            "spoken": spoken_text,
             "mode": result.get("mode"),
             "source": result.get("source"),
             "state": "RESPONDING",
@@ -1553,6 +1709,7 @@ if __name__ == '__main__':
                 logger.info("Warming up Faster-Whisper (STT) model...")
                 preload_stt_model()
                 logger.info("Warming up Kokoro (TTS) model...")
+                apply_personality_voice()
                 preload_tts_model()
                 logger.info("Voice model warm-up complete")
             except Exception as exc:  # pragma: no cover - defensive

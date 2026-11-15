@@ -49,8 +49,23 @@ APPLICATIONS = {
     "powershell": "powershell.exe",
     "terminal": "wt.exe",
     "edge": "microsoft-edge:",
-    "vs code": "code.exe",
+    "vs code": "code",
     "settings": "ms-settings:",
+}
+
+# Apps that often install into per-user locations which differ between
+# machines. Checked in order; the first existing path wins.
+KNOWN_INSTALL_PATHS = {
+    "vs code": [
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+        r"C:\Program Files\Microsoft VS Code\Code.exe",
+        r"C:\Program Files (x86)\Microsoft VS Code\Code.exe",
+    ],
+    "spotify": [
+        os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Spotify\Spotify.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WindowsApps\Spotify.exe"),
+    ],
 }
 
 
@@ -107,6 +122,42 @@ def execute_restart(delay=None):
     }
 
 
+def _resolve_executable(app):
+    """Resolve a command name to a real executable on this machine.
+
+    Returns a URI unchanged, an existing file path unchanged, or the result of
+    a PATH lookup (which also honours PATHEXT, so "code" -> "code.cmd").
+    """
+    app = str(app or "").strip()
+
+    if not app:
+        return None
+
+    if app.endswith(":") or "://" in app:
+        return app
+
+    if os.path.isfile(app):
+        return app
+
+    for candidate in (app, os.path.splitext(app)[0]):
+        found = shutil.which(candidate)
+        if found:
+            return found
+
+    return None
+
+
+def _launch_target(target):
+    """Start a resolved executable or URI, handling .cmd/.bat shims."""
+    lower = target.lower()
+
+    if lower.endswith((".cmd", ".bat")):
+        # CreateProcess cannot run a batch file directly; go through the shell.
+        subprocess.Popen([target], shell=True)
+    else:
+        subprocess.Popen([target])
+
+
 def execute_launch_app(app_name):
     app_name = str(app_name or "").strip().lower()
 
@@ -115,27 +166,41 @@ def execute_launch_app(app_name):
     if app_name == "chrome" and app and not os.path.exists(app):
         app = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
+    # Some apps live in per-user install folders that vary by machine.
+    if not app or not _resolve_executable(app):
+        for candidate in KNOWN_INSTALL_PATHS.get(app_name, []):
+            if os.path.isfile(candidate):
+                app = candidate
+                break
+
     if not app:
         # Fall back to any executable Windows can find on the PATH, so
         # "open <whatever>" works for tools like python, git, code, etc.
         # (We deliberately avoid shell-opening unknown names, which can
         # pop an "Open with" dialog.)
-        if _PLAIN_APP_RE.fullmatch(app_name) and shutil.which(app_name):
-            app = app_name
-        else:
+        if _PLAIN_APP_RE.fullmatch(app_name):
+            app = _resolve_executable(app_name)
+
+        if not app:
             return {
                 "status": "error",
                 "message": f"Application not supported: {app_name}",
             }
 
+    resolved = _resolve_executable(app)
+
+    if not resolved:
+        return {
+            "status": "error",
+            "message": f"Application not found: {app_name}",
+        }
+
     try:
-        if app.endswith(":") or "://" in app:
+        if resolved.endswith(":") or "://" in resolved:
             # A URI protocol such as ms-settings:
-            os.startfile(app)
-        elif os.path.isfile(app):
-            subprocess.Popen([app])
+            os.startfile(resolved)
         else:
-            subprocess.Popen(app)
+            _launch_target(resolved)
 
         return {
             "status": "success",
@@ -149,6 +214,34 @@ def execute_launch_app(app_name):
         return {
             "status": "error",
             "message": f"Failed to open {app_name}: {error}",
+        }
+
+
+def execute_open_uri(uri, label=None):
+    """Open a custom URI scheme (for example spotify:search:...)."""
+    try:
+        uri = str(uri or "").strip()
+
+        if not uri:
+            return {
+                "status": "error",
+                "message": "No URI provided.",
+            }
+
+        os.startfile(uri)
+
+        return {
+            "status": "success",
+            "message": f"Opening {label}" if label else "Opening link",
+            "uri": uri,
+        }
+
+    except Exception as error:
+        logger.exception("URI launch failed")
+
+        return {
+            "status": "error",
+            "message": f"Could not open {label or uri}: {error}",
         }
 
 

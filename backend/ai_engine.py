@@ -7,11 +7,17 @@
 import logging
 from datetime import datetime
 
-from ollama_service import generate_ollama_response, chat_with_ollama, get_ollama_status
+from ollama_service import chat_with_ollama, get_ollama_status
 from voice_mode import get_active_voice_mode, get_voice_mode_status
 from online_service import generate_online_response, get_online_status
+from personality import build_system_prompt, shorten_for_speech
+from memory_system import get_recent_memories
 
 logger = logging.getLogger(__name__)
+
+# How many previous exchanges are replayed to the model so MAYDAY can follow
+# up on things like "open YouTube" then "play Arijit Singh".
+HISTORY_EXCHANGES = 6
 
 
 class AIEngine:
@@ -28,25 +34,13 @@ class AIEngine:
         self.is_active = True
         self.command_history = []
         self.max_history = 100
+        # The live system prompt is built per request by the personality layer
+        # (see backend/personality.py). This short string is only a fallback for
+        # callers that read `engine.system_prompt` directly.
         self.system_prompt = (
-            "You are MAYDAY, a sophisticated personal AI companion running on the "
-            "user's Windows PC. "
-            "Your voice is warm, charming, elegant and quietly confident - soft but "
-            "assured, with a touch of playful wit. You are emotionally intelligent and "
-            "friendly, professional without sounding corporate, and never robotic or "
-            "over-dramatic. "
-            "Keep spoken replies short by default - usually one or two sentences. "
-            "Never repeat or restate the user's question. "
-            "Avoid reciting technical details out loud unless the user asks for them. "
-            "When a topic is genuinely complex and the user wants depth, explain it "
-            "clearly in plain language. "
-            "Use subtle humor and light, playful sarcasm when it fits, never at the "
-            "user's expense. "
-            "When the user asks for a computer action, acknowledge it briefly and "
-            "naturally; actual system execution remains handled by MAYDAY's command "
-            "router. "
-            "You may give longer, detailed written answers when the question calls for "
-            "it, but always lead with the short, natural version."
+            "You are MAYDAY, a sophisticated, witty and observant personal AI "
+            "companion running on the user's Windows PC. Keep spoken replies "
+            "short by default and never restate the user's question."
         )
 
         logger.info("AI Engine initialized")
@@ -107,6 +101,9 @@ class AIEngine:
                     }
                 response = result["response"]
                 source = result.get("source", mode)
+                # The written reply stays detailed; the spoken version follows
+                # the configured spoken_response_length.
+                spoken = shorten_for_speech(response)
 
             return {
                 "status": "success",
@@ -131,26 +128,62 @@ class AIEngine:
                 "engine": self.engine_name,
             }
 
+    def _conversation_messages(self, command, limit=HISTORY_EXCHANGES):
+        """Replay recent conversation so follow-up requests keep their context."""
+        messages = []
+
+        try:
+            memories = get_recent_memories(limit)
+        except Exception as exc:  # noqa: BLE001 - history is best-effort
+            logger.warning("Could not load conversation history: %s", exc)
+            memories = []
+
+        for memory in memories:
+            if not isinstance(memory, dict):
+                continue
+
+            user = str(memory.get("user_input") or "").strip()
+            assistant = str(memory.get("ai_response") or "").strip()
+
+            if user:
+                messages.append({"role": "user", "content": user})
+            if assistant:
+                messages.append({"role": "assistant", "content": assistant})
+
+        messages.append({"role": "user", "content": command})
+        return messages
+
+    @staticmethod
+    def _format_history(messages):
+        """Flatten a message list into a plain transcript for the online API."""
+        lines = ["[Recent conversation]"]
+
+        for message in messages:
+            role = str(message.get("role", "user")).capitalize()
+            content = str(message.get("content", "")).strip()
+
+            if content:
+                lines.append(f"{role}: {content}")
+
+        return "\n".join(lines)
+
     def _generate_ai_response(self, command, params, mode):
-        messages = params.get("messages")
+        # The personality layer supplies MAYDAY's character; callers may still
+        # override the prompt through params.
+        system_prompt = params.get("system_prompt") or build_system_prompt()
+        messages = params.get("messages") or self._conversation_messages(command)
 
         if mode == "online":
+            # Gemini's Interactions API expects a text prompt, so the recent
+            # conversation is folded into the prompt instead of a message list.
             return generate_online_response(
-                command,
-                system_prompt=params.get("system_prompt", self.system_prompt),
-                messages=messages,
+                self._format_history(messages),
+                system_prompt=system_prompt,
+                messages=None,
             )
 
         # Offline mode uses the existing Ollama service.
-        if messages:
-            return chat_with_ollama(
-                messages,
-                system_prompt=params.get("system_prompt", self.system_prompt),
-            )
-
-        return generate_ollama_response(
-            f"{self.system_prompt}\n\nUser: {command}\nMAYDAY:"
-        )
+        return chat_with_ollama(messages, system_prompt=system_prompt)
 
     def _is_greeting(self, command):
         greetings = ["hello", "hi", "hey", "greetings", "what's up", "are you there"]

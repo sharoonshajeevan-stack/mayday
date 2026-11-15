@@ -1,9 +1,12 @@
 import re
+import time
+import urllib.parse
 
 
 from system_commands import (
     execute_launch_app,
     execute_open_url,
+    execute_open_uri,
     execute_get_processes,
     execute_get_system_info,
     execute_shutdown,
@@ -27,6 +30,8 @@ from window_commands import (
 )
 
 from file_commands import open_folder
+
+from site_names import friendly_site_name
 
 
 
@@ -80,6 +85,9 @@ APP_ALIASES = {
 
     "settings": "settings",
     "windows settings": "settings",
+
+    "spotify": "spotify",
+    "spotify app": "spotify",
 }
 
 
@@ -209,7 +217,153 @@ def normalize_command(text):
     return _strip_fillers(text)
 
 
-def route_command(command):
+# ============================================================================
+# FOLLOW-UP CONTEXT
+#
+# MAYDAY remembers the last thing it opened so a follow-up like "play Arijit
+# Singh" after "open YouTube" lands in the right place.
+# ============================================================================
+
+_LAST_CONTEXT = {"kind": None, "name": None, "url": None, "at": 0.0}
+_CONTEXT_TTL = 900  # seconds
+
+_MEDIA_PLATFORMS = {"youtube", "spotify", "google"}
+_MUSIC_PHRASES = {
+    "music",
+    "some music",
+    "a song",
+    "some songs",
+    "a tune",
+    "some tunes",
+    "something",
+    "something nice",
+    "something good",
+}
+
+
+def get_last_context():
+    return dict(_LAST_CONTEXT)
+
+
+def _remember_context(result):
+    if not isinstance(result, dict) or result.get("status") != "success":
+        return
+
+    if result.get("url"):
+        _LAST_CONTEXT.update({
+            "kind": "site",
+            "name": friendly_site_name(result["url"]),
+            "url": result["url"],
+            "at": time.time(),
+        })
+    elif result.get("application"):
+        _LAST_CONTEXT.update({
+            "kind": "app",
+            "name": result["application"],
+            "url": None,
+            "at": time.time(),
+        })
+
+
+def _media_target(raw, intent):
+    """Turn "arjit singh on youtube" into a query + platform."""
+    target = str(raw or "").strip()
+
+    platform = None
+
+    platform_match = re.match(
+        r"^(.*?)\s+on\s+(youtube|spotify|google|the web|the internet)$",
+        target,
+    )
+
+    if platform_match:
+        target = platform_match.group(1).strip()
+        platform = platform_match.group(2)
+
+        if platform in {"the web", "the internet"}:
+            platform = "google"
+
+    target = target.strip(" .")
+
+    if not target:
+        return None
+
+    if intent == "play" and target in _MUSIC_PHRASES:
+        target = "music"
+
+    if platform not in _MEDIA_PLATFORMS:
+        last = _LAST_CONTEXT
+        fresh = (time.time() - last["at"]) < _CONTEXT_TTL
+
+        if fresh and last["kind"] == "site" and last["name"] in _MEDIA_PLATFORMS:
+            platform = last["name"]
+        else:
+            platform = "youtube" if intent == "play" else "google"
+
+    return {"query": target, "platform": platform, "intent": intent}
+
+
+def _parse_media_command(text):
+    match = re.match(r"^(?:play|put on)\s+(.+)$", text)
+
+    if match:
+        return _media_target(match.group(1), "play")
+
+    match = re.match(
+        r"^(?:search|search for|look up|look for|google)\s+(.+)$",
+        text,
+    )
+
+    if match:
+        return _media_target(match.group(1), "search")
+
+    return None
+
+
+def _execute_media(media):
+    query = media["query"]
+    platform = media["platform"]
+    intent = media["intent"]
+    encoded = urllib.parse.quote_plus(query)
+
+    if platform == "spotify":
+        result = execute_open_uri(
+            f"spotify:search:{urllib.parse.quote(query)}",
+            label="Spotify",
+        )
+
+        if result.get("status") == "success":
+            result["message"] = f"Playing {query} on Spotify"
+            result["url"] = "https://open.spotify.com"
+            return result
+
+        # Spotify is not installed - fall back to YouTube.
+        platform = "youtube"
+
+    if platform == "google":
+        result = execute_open_url(
+            f"https://www.google.com/search?q={encoded}"
+        )
+
+        if result.get("status") == "success":
+            result["message"] = f"Searching google for {query}"
+
+        return result
+
+    result = execute_open_url(
+        f"https://www.youtube.com/results?search_query={encoded}"
+    )
+
+    if result.get("status") == "success":
+        if intent == "play":
+            result["message"] = f"Playing {query} on youtube"
+        else:
+            result["message"] = f"Searching youtube for {query}"
+
+    return result
+
+
+def _route_command(command):
     text = normalize_command(str(command or ""))
 
     if not text:
@@ -241,6 +395,15 @@ def route_command(command):
 
         if target.startswith(("http://", "https://", "www.")):
             return execute_open_url(target)
+
+    # ------------------------------------------------------------
+    # PLAY / SEARCH (follow-ups)
+    # ------------------------------------------------------------
+
+    media = _parse_media_command(text)
+
+    if media:
+        return _execute_media(media)
 
     # ------------------------------------------------------------
     # OPEN APPLICATION
@@ -415,3 +578,13 @@ def route_command(command):
         return open_folder(folder)
 
     return None
+
+
+def route_command(command):
+    """Route a command and remember successful opens for follow-ups."""
+    result = _route_command(command)
+
+    if result:
+        _remember_context(result)
+
+    return result
