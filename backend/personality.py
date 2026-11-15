@@ -623,9 +623,13 @@ def comment_on_action(result, command="", base_message=None, settings=None):
     base = _ensure_sentence((base_message or "").strip() or "Command completed.")
     kind = classify_action(result, command)
 
-    # The written response keeps the detail (e.g. the saved path); the spoken
-    # version stays short and natural.
-    spoken_base = "Screenshot captured." if kind == "screenshot" else base
+    # The written response keeps the detail (e.g. the saved path or a system
+    # dump); the spoken version is always shortened so MAYDAY never reads a
+    # data table aloud.
+    if kind == "screenshot":
+        spoken_base = "Screenshot captured."
+    else:
+        spoken_base = shorten_for_speech(base, settings=s) or base
 
     plain = {"response": base, "spoken": spoken_base, "kind": kind, "commented": False}
 

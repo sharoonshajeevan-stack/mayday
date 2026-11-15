@@ -180,6 +180,24 @@ Ollama runs on: `http://localhost:11434`
 - Control volume and speed through API
 - Customizable voice selection
 
+#### **Real-Time Voice (Pipecat Layer)**
+
+MAYDAY also ships an optional real-time voice mode. It adds continuous
+listening, voice-activity detection (VAD), turn detection, barge-in and
+streaming speech on top of the **same** Faster-Whisper, Kokoro and
+Gemini/Ollama engines - nothing is duplicated and no audio ever leaves the
+machine.
+
+- Look for the **VOICE LINK** panel at the bottom of the HUD
+- Click **ACTIVATE VOICE** - the mic indicator lights up and MAYDAY listens
+- Just speak; MAYDAY detects the end of your turn and replies
+- Speak while MAYDAY is talking to **interrupt** it mid-sentence
+- Click **DEACTIVATE** to release the microphone
+
+Privacy: nothing is activated automatically, the microphone indicator is always
+visible while live, and the mic is released the moment you deactivate or close
+the HUD. The service binds to `127.0.0.1` only.
+
 ### **System Commands (Middle Box)**
 
 #### **Launch Apps**
@@ -226,6 +244,14 @@ Ollama runs on: `http://localhost:11434`
 - `GET /api/tts/voices` - Get available voices
 - `POST /api/tts/rate` - Set speech speed
 - `POST /api/tts/volume` - Set volume level
+
+### **Real-Time Voice (Pipecat)**
+- `GET /api/voice/realtime/status` - Check the real-time voice service
+- `POST /api/voice/realtime/start` - Start the real-time voice service
+- `POST /api/voice/realtime/stop` - Stop the real-time voice service
+- `GET /voice/health` (service) - Service health probe
+- `POST /voice/shutdown` (service) - Clean service shutdown
+- `ws://127.0.0.1:7860/ws/voice` - Control/event channel (JSON only, no audio)
 
 ### **System Commands**
 - `POST /api/system/shutdown` - Shutdown PC

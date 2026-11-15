@@ -111,6 +111,10 @@ class TextToSpeechEngine:
         self._pipelines = {}
         self._pipeline_lock = threading.Lock()
         self._speak_guard = threading.Lock()
+        # Serialises Kokoro synthesis between the push-to-talk path and the
+        # real-time (Pipecat) streaming path. Kokoro's pipeline is not
+        # thread-safe, so only one utterance is synthesised at a time.
+        self._synth_guard = threading.Lock()
         self._stop_requested = False
         self._voices_cache = None
         self._threads_configured = False
@@ -443,6 +447,65 @@ class TextToSpeechEngine:
             "stopped": self._stop_requested,
             "timestamp": datetime.now().isoformat(),
         }
+
+    def iter_audio_chunks(self, text, stop_event=None):
+        """Yield loud, normalised Kokoro audio chunks for ``text`` (24 kHz).
+
+        Unlike :meth:`speak` this plays nothing - it hands the raw float32
+        audio to the caller so a streaming pipeline (the real-time Pipecat
+        voice agent) can play it through its own output transport. It re-uses
+        the same cached Kokoro pipeline, voice, chunking and levelling as
+        ``speak`` so the voice is identical.
+
+        ``stop_event`` (a ``threading.Event``) lets an interruption stop
+        synthesis immediately: generation checks it between pieces and between
+        the audio chunks Kokoro yields.
+        """
+        text = str(text or "").strip()
+
+        if not text:
+            return
+
+        voice = self._resolve_voice(self.voice)
+        pipeline = self._load_pipeline(self._lang_for_voice(voice))
+
+        if pipeline is None:
+            return
+
+        pieces = self._speech_pieces(text)
+
+        if not pieces:
+            return
+
+        def stopped():
+            return stop_event is not None and stop_event.is_set()
+
+        # Kokoro's pipeline is not thread-safe, so serialise synthesis. The
+        # lock is held by the calling (worker) thread for the whole utterance
+        # and released as soon as it finishes or is interrupted.
+        with self._synth_guard:
+            for piece in pieces:
+                if stopped():
+                    return
+
+                try:
+                    for _graphemes, _phonemes, audio in pipeline(
+                        piece,
+                        voice=voice,
+                        speed=self.speed,
+                    ):
+                        if stopped():
+                            return
+
+                        audio = np.asarray(audio, dtype=np.float32)
+
+                        if audio.size == 0:
+                            continue
+
+                        yield self._apply_level(audio)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("Kokoro streaming synthesis error: %s", exc)
+                    return
 
     def _queue_put(self, audio_queue, item):
         """Put an item on the queue, giving up if a stop was requested."""

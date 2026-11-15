@@ -334,6 +334,32 @@ class SpeechToTextEngine:
             "Transcribed locally (%s): %r", getattr(info, "language", "?"), text
         )
 
+    def transcribe_array(self, audio_array):
+        """Transcribe a float32 mono array recorded at 16 kHz.
+
+        This is the entry point used by the real-time (Pipecat) voice pipeline.
+        It re-uses the *same* Faster-Whisper model instance, language and
+        decoding settings as the push-to-talk recorder, so transcription is
+        identical between both paths and no second model is loaded.
+
+        Returns the transcript text (may be an empty string).
+        """
+        if audio_array is None:
+            return ""
+
+        array = np.asarray(audio_array, dtype=np.float32).reshape(-1)
+
+        if array.size == 0:
+            return ""
+
+        try:
+            self._transcribe_local(array)
+        except Exception as exc:  # noqa: BLE001 - never break the caller
+            logger.error("transcribe_array failed: %s", exc)
+            return ""
+
+        return (self.transcript or "").strip()
+
     def _transcribe_online(self, audio_array):
         """Write a temporary WAV and transcribe it with the online API."""
         temp_file = os.path.join(

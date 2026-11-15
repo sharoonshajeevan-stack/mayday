@@ -1,0 +1,310 @@
+/* src/components/hud/RealtimeVoice.css */
+
+/* =========================================================
+   MAYDAY REAL-TIME VOICE — Pipecat control panel
+   ========================================================= */
+
+.realtime-voice {
+  position: fixed;
+
+  left: 50%;
+  bottom: 24px;
+
+  transform: translateX(-50%);
+
+  z-index: 9999;
+
+  min-width: 240px;
+  max-width: 420px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding: 10px 14px;
+
+  border: 1px solid rgba(0, 191, 255, 0.18);
+  border-radius: 8px;
+
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+
+  font-family: "Courier New", "Roboto Mono", monospace;
+
+  pointer-events: auto;
+
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.realtime-voice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+.realtime-voice-title {
+  font-size: 8px;
+  letter-spacing: 2px;
+
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.realtime-voice-conn {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.realtime-voice-conn.open {
+  color: #00bfff;
+}
+
+.realtime-voice-conn.connecting {
+  color: #ffd700;
+}
+
+/* =========================================================
+   STATE ROW
+   ========================================================= */
+
+.realtime-voice-state-row {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+.realtime-voice-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.25);
+
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.realtime-voice-state {
+  font-size: 9px;
+  letter-spacing: 2px;
+
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.realtime-voice-mic {
+  margin-left: auto;
+
+  font-size: 7px;
+  letter-spacing: 1.5px;
+
+  color: #00bfff;
+
+  animation: realtime-mic-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes realtime-mic-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* =========================================================
+   TRANSCRIPT
+   ========================================================= */
+
+.realtime-voice-transcript {
+  min-height: 14px;
+
+  font-size: 9px;
+  line-height: 1.4;
+
+  color: rgba(255, 255, 255, 0.78);
+
+  word-break: break-word;
+}
+
+.realtime-voice-muted {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.realtime-voice-error {
+  font-size: 8px;
+  letter-spacing: 1px;
+
+  color: #ff6b6b;
+}
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.realtime-voice-actions {
+  display: flex;
+
+  gap: 8px;
+
+  margin-top: 2px;
+}
+
+.realtime-voice-button {
+  flex: 1;
+
+  padding: 7px 10px;
+
+  border: 1px solid rgba(0, 191, 255, 0.22);
+  border-radius: 5px;
+
+  background: rgba(0, 0, 0, 0.4);
+
+  color: rgba(255, 255, 255, 0.55);
+
+  font-family: inherit;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.realtime-voice-button:hover:not(:disabled) {
+  border-color: rgba(0, 191, 255, 0.6);
+  background: rgba(0, 191, 255, 0.08);
+  color: #00bfff;
+}
+
+.realtime-voice-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.realtime-voice-button.stop:hover:not(:disabled),
+.realtime-voice-button.interrupt:hover:not(:disabled) {
+  border-color: rgba(255, 107, 107, 0.7);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ff6b6b;
+}
+
+/* =========================================================
+   STATE COLOURS
+   ========================================================= */
+
+.realtime-voice.state-listening {
+  border-color: rgba(0, 191, 255, 0.55);
+  box-shadow: 0 0 16px rgba(0, 191, 255, 0.12);
+}
+
+.realtime-voice.state-listening .realtime-voice-dot {
+  background: #00bfff;
+  box-shadow: 0 0 8px #00bfff;
+}
+
+.realtime-voice.state-listening .realtime-voice-state {
+  color: #00bfff;
+}
+
+.realtime-voice.state-thinking {
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.1);
+}
+
+.realtime-voice.state-thinking .realtime-voice-dot {
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.realtime-voice.state-thinking .realtime-voice-state {
+  color: #ffffff;
+}
+
+.realtime-voice.state-speaking,
+.realtime-voice.state-executing {
+  border-color: rgba(255, 179, 71, 0.6);
+  box-shadow: 0 0 18px rgba(255, 179, 71, 0.18);
+}
+
+.realtime-voice.state-speaking .realtime-voice-dot,
+.realtime-voice.state-executing .realtime-voice-dot {
+  background: #ffb347;
+  box-shadow: 0 0 9px #ffb347;
+}
+
+.realtime-voice.state-speaking .realtime-voice-state,
+.realtime-voice.state-executing .realtime-voice-state {
+  color: #ffb347;
+}
+
+.realtime-voice.state-interrupted {
+  border-color: rgba(255, 215, 0, 0.55);
+}
+
+.realtime-voice.state-interrupted .realtime-voice-dot {
+  background: #ffd700;
+  box-shadow: 0 0 8px #ffd700;
+}
+
+.realtime-voice.state-interrupted .realtime-voice-state {
+  color: #ffd700;
+}
+
+.realtime-voice.state-error {
+  border-color: rgba(255, 107, 107, 0.6);
+}
+
+.realtime-voice.state-error .realtime-voice-dot {
+  background: #ff6b6b;
+  box-shadow: 0 0 8px #ff6b6b;
+}
+
+.realtime-voice.state-error .realtime-voice-state {
+  color: #ff6b6b;
+}
+
+/* =========================================================
+   MOBILE / REDUCED MOTION
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .realtime-voice {
+    left: 12px;
+    right: 12px;
+    bottom: 76px;
+
+    transform: none;
+
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .realtime-voice,
+  .realtime-voice-dot,
+  .realtime-voice-button {
+    transition: none;
+  }
+
+  .realtime-voice-mic {
+    animation: none;
+  }
+}

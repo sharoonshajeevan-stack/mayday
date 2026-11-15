@@ -16,6 +16,7 @@ import ConversationFlow from "./ConversationFlow";
 import StateTransition from "./StateTransition";
 import ResponseStateController from "./ResponseStateController";
 import PersonalitySettings from "./PersonalitySettings";
+import RealtimeVoice from "./RealtimeVoice";
 
 import "./HUD.css";
 
@@ -45,6 +46,10 @@ export default function HUD() {
       <VoiceActivity />
 
       <VoiceControl />
+
+      {/* Real-time voice (Pipecat) */}
+
+      <RealtimeVoice />
 
       {/* History */}
 

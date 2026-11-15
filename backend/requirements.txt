@@ -27,6 +27,12 @@ faster-whisper>=1.2.1
 # downloads its voice pack (~330 MB) from Hugging Face on first use.
 kokoro>=0.9.4
 
+# --- Real-time voice orchestration (Pipecat) --------------------------------
+# Adds continuous listening, voice-activity detection, turn detection,
+# barge-in/interruption and streaming speech on top of the SAME Faster-Whisper,
+# Kokoro and Gemini/Ollama engines. Installed cleanly on CPU (no CUDA).
+pipecat-ai==1.16.0
+
 # --- System monitoring / screenshots ---------------------------------------
 psutil
 Pillow

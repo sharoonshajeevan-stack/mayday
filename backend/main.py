@@ -507,6 +507,119 @@ def voice_online_status():
 
 
 # ============================================================================
+# REAL-TIME VOICE (Pipecat) ENDPOINTS
+# ============================================================================
+# These manage the separate real-time voice service process. The service owns
+# the microphone and speakers directly (transport=local); the browser only
+# talks to it over a control WebSocket, so no audio ever leaves the machine.
+#
+# The heavy Pipecat import is done lazily inside each handler so MAYDAY keeps
+# working exactly as before if the real-time extras are not installed.
+
+def _realtime_voice_launcher():
+    """Import and return the launcher module, or None when unavailable."""
+    try:
+        from pipecat_voice import launcher
+        return launcher
+    except Exception as exc:  # noqa: BLE001 - optional dependency
+        logger.warning("Real-time voice layer unavailable: %s", exc)
+        return None
+
+
+@app.route('/api/voice/realtime/status', methods=['GET'])
+def realtime_voice_status():
+    """Report whether the real-time voice service is running."""
+    launcher = _realtime_voice_launcher()
+
+    if launcher is None:
+        return jsonify({
+            "status": "success",
+            "available": False,
+            "running": False,
+            "message": "Pipecat real-time voice layer is not installed",
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+
+    host = os.getenv("MAYDAY_VOICE_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    port = int(os.getenv("MAYDAY_VOICE_PORT", "7860"))
+
+    try:
+        state = launcher.service_status(host, port)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Error checking real-time voice status: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 400
+
+    return jsonify({
+        "status": "success",
+        "available": True,
+        "host": host,
+        "port": port,
+        "timestamp": datetime.now().isoformat(),
+        **state,
+    }), 200
+
+
+@app.route('/api/voice/realtime/start', methods=['POST'])
+def realtime_voice_start():
+    """Start the real-time voice service (idempotent)."""
+    launcher = _realtime_voice_launcher()
+
+    if launcher is None:
+        return jsonify({
+            "status": "error",
+            "available": False,
+            "message": "Pipecat real-time voice layer is not installed",
+        }), 400
+
+    host = os.getenv("MAYDAY_VOICE_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    port = int(os.getenv("MAYDAY_VOICE_PORT", "7860"))
+    token = os.getenv("MAYDAY_VOICE_TOKEN", "").strip()
+
+    try:
+        result = launcher.start_service(host=host, port=port, token=token)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Error starting real-time voice service: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 400
+
+    code = 200 if result.get("status") == "success" else 500
+    return jsonify({
+        "status": result.get("status", "error"),
+        "available": True,
+        "message": result.get("message"),
+        "pid": result.get("pid"),
+        "host": host,
+        "port": port,
+        "timestamp": datetime.now().isoformat(),
+    }), code
+
+
+@app.route('/api/voice/realtime/stop', methods=['POST'])
+def realtime_voice_stop():
+    """Stop the real-time voice service (idempotent)."""
+    launcher = _realtime_voice_launcher()
+
+    if launcher is None:
+        return jsonify({
+            "status": "success",
+            "available": False,
+            "message": "Pipecat real-time voice layer is not installed",
+        }), 200
+
+    try:
+        result = launcher.stop_service()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Error stopping real-time voice service: %s", exc)
+        return jsonify({"status": "error", "message": str(exc)}), 400
+
+    return jsonify({
+        "status": result.get("status", "success"),
+        "available": True,
+        "message": result.get("message"),
+        "timestamp": datetime.now().isoformat(),
+    }), 200
+
+
+# ============================================================================
 # PERSONALITY SETTINGS ENDPOINTS
 # ============================================================================
 

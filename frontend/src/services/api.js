@@ -974,6 +974,77 @@ export const setOllamaModel = async (model) => {
     return { success: false, error: error.message };
   }
 };
+// ============================================================================
+// REAL-TIME VOICE (Pipecat) FUNCTIONS
+// ============================================================================
+// These control the separate real-time voice service process. The service
+// owns the microphone and speakers directly; the browser only opens a control
+// WebSocket to it (see services/voiceSocket.js).
+
+export const getRealtimeVoiceStatus = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/voice/realtime/status`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Real-time voice status failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const startRealtimeVoice = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/voice/realtime/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.status !== 'success') {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Real-time voice start failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const stopRealtimeVoice = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/voice/realtime/stop`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Real-time voice stop failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 export default {
   checkHealth,
   getWelcome,
@@ -982,4 +1053,7 @@ export default {
   apiCall,
   getPersonalitySettings,
   updatePersonalitySettings,
+  getRealtimeVoiceStatus,
+  startRealtimeVoice,
+  stopRealtimeVoice,
 };
