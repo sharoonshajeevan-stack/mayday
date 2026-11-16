@@ -386,6 +386,26 @@ def test_brain():
         check("ai failure -> error status", result["status"] == "error")
         check("ai failure still remembered", len(remembered) == 3)
 
+        # 3b. A provider error that carries a user-facing line (e.g. a Gemini
+        #     429) is surfaced verbatim instead of a generic apology.
+        mayday_brain.process_ai_command = lambda text: {
+            "status": "error",
+            "error": "Gemini rate limit reached (HTTP 429)",
+            "response": "I'm being rate-limited right now.",
+        }
+        result = mayday_brain.handle_utterance("open google and search for claude")
+        check("rate limit -> error status", result["status"] == "error")
+        check(
+            "rate limit -> friendly screen text",
+            result["response"] == "I'm being rate-limited right now.",
+            result["response"],
+        )
+        check(
+            "rate limit -> friendly speech",
+            result["spoken"] == "I'm being rate-limited right now.",
+            result["spoken"],
+        )
+
         # 4. Empty input is rejected.
         result = mayday_brain.handle_utterance("   ")
         check("empty utterance -> error", result["status"] == "error")
@@ -866,6 +886,52 @@ def test_real_engines():
 
 
 # ---------------------------------------------------------------------------
+# 5c. Online (Gemini) error surfacing
+# ---------------------------------------------------------------------------
+def test_online_errors():
+    print("\n[5c] Online error surfacing")
+
+    import online_service
+
+    class FakeError(Exception):
+        pass
+
+    # A rate-limited request must be bounded, not left to hang.
+    svc = online_service.OnlineService()
+    options = svc._http_options()
+    check(
+        "gemini timeout is bounded",
+        isinstance(options.timeout, int) and options.timeout > 0,
+        options.timeout,
+    )
+    check(
+        "gemini retries are bounded",
+        bool(options.retry_options.attempts) and options.retry_options.attempts >= 1,
+        options.retry_options.attempts,
+    )
+
+    message, friendly = online_service.OnlineService._describe_error(
+        FakeError("429 RESOURCE_EXHAUSTED: quota exceeded")
+    )
+    check("429 -> technical message", "429" in message, message)
+    check(
+        "429 -> friendly line",
+        bool(friendly) and "rate" in friendly.lower(),
+        friendly,
+    )
+
+    _message, friendly = online_service.OnlineService._describe_error(
+        FakeError("request timed out")
+    )
+    check("timeout -> friendly line", bool(friendly), friendly)
+
+    _message, friendly = online_service.OnlineService._describe_error(
+        FakeError("something odd")
+    )
+    check("other error -> no friendly line", friendly is None, friendly)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -879,6 +945,7 @@ def main():
     test_tts_adapter()
     test_llm_adapter()
     test_brain()
+    test_online_errors()
     test_observer()
     test_mute_processor()
     test_pipeline_assembly()

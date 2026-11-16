@@ -249,6 +249,45 @@ command_router._LAST_CONTEXT.update({"kind": None, "name": None, "url": None, "a
 out = run("search arijit singh")
 check("search defaults google", out and "google" in (out["action"].get("url") or "").lower(), out["action"].get("url") if out else None)
 
+# Router regression: "open google and search for claude" used to be read as an
+# app launch ("google and search for claude"), fall through and get handed to
+# the AI engine, where a rate limit could leave it stuck in THINKING.
+reset_cooldown()
+command_router._LAST_CONTEXT.update({"kind": None, "name": None, "url": None, "at": 0.0})
+out = run("open google and search for claude")
+check("compound search routed", out is not None, "open google and search for claude")
+check(
+    "compound search lands on google",
+    out and "google" in (out["action"].get("url") or "").lower(),
+    out["action"].get("url") if out else None,
+)
+check(
+    "compound search keeps the query",
+    out and (out["action"].get("message") or "").lower() == "searching google for claude",
+    out["action"].get("message") if out else None,
+)
+check("compound search kind site", out and out["commentary"]["kind"] == "site")
+
+# Router regression: "search for X" used to search Google for "for X".
+reset_cooldown()
+command_router._LAST_CONTEXT.update({"kind": None, "name": None, "url": None, "at": 0.0})
+out = run("search for claude")
+check(
+    "search-for query is clean",
+    out and (out["action"].get("message") or "").lower() == "searching google for claude",
+    out["action"].get("message") if out else None,
+)
+
+# Router regression: "search google for X" used to search for "google for X".
+reset_cooldown()
+command_router._LAST_CONTEXT.update({"kind": None, "name": None, "url": None, "at": 0.0})
+out = run("search google for claude")
+check(
+    "search-site-for query is clean",
+    out and (out["action"].get("message") or "").lower() == "searching google for claude",
+    out["action"].get("message") if out else None,
+)
+
 # Repeated commands: first comments, second stays quiet (cooldown).
 reset_cooldown()
 first = run("open notepad")

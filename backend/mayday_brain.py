@@ -105,11 +105,12 @@ def handle_utterance(text):
             ai = {"status": "error", "error": str(exc)}
 
         if ai.get("status") != "success":
+            fallback = ai.get("response") or "I couldn't process that."
             result = {
                 "status": "error",
                 "command": text,
-                "response": ai.get("response") or "I couldn't process that.",
-                "spoken": "Sorry, that didn't work.",
+                "response": fallback,
+                "spoken": ai.get("spoken") or fallback,
                 "source": ai.get("source") or "ai",
                 "error": ai.get("error") or "ai engine error",
             }

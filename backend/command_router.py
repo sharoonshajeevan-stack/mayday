@@ -228,6 +228,10 @@ _LAST_CONTEXT = {"kind": None, "name": None, "url": None, "at": 0.0}
 _CONTEXT_TTL = 900  # seconds
 
 _MEDIA_PLATFORMS = {"youtube", "spotify", "google"}
+
+# Sites a media command can name, e.g. "youtube" in "play lofi on youtube"
+# or "google" in "open google and search for claude".
+_SITE_WORDS = r"(?:youtube|spotify|google|the web|the internet)"
 _MUSIC_PHRASES = {
     "music",
     "some music",
@@ -304,13 +308,48 @@ def _media_target(raw, intent):
 
 
 def _parse_media_command(text):
+    # ----------------------------------------------------------------
+    # Compound: "open google and search for claude"
+    #           "open youtube and play lofi"
+    # ----------------------------------------------------------------
+    match = re.match(
+        r"^(?:open|go to|visit)\s+(?P<site>" + _SITE_WORDS + r")\s+and\s+"
+        r"(?P<verb>play|put on|search for|search|look up|look for|google)"
+        r"\s+(?P<query>.+)$",
+        text,
+    )
+
+    if match:
+        intent = "play" if match.group("verb") in {"play", "put on"} else "search"
+        return _media_target(
+            f"{match.group('query')} on {match.group('site')}",
+            intent,
+        )
+
+    # ----------------------------------------------------------------
+    # Compound: "search google for claude"
+    # ----------------------------------------------------------------
+    match = re.match(
+        r"^(?:search|look up|look for|google)\s+(?P<site>" + _SITE_WORDS + r")"
+        r"\s+for\s+(?P<query>.+)$",
+        text,
+    )
+
+    if match:
+        return _media_target(
+            f"{match.group('query')} on {match.group('site')}",
+            "search",
+        )
+
     match = re.match(r"^(?:play|put on)\s+(.+)$", text)
 
     if match:
         return _media_target(match.group(1), "play")
 
+    # "search for" must be tried before "search", otherwise the query keeps
+    # the leading "for" (e.g. "search for claude" -> "for claude").
     match = re.match(
-        r"^(?:search|search for|look up|look for|google)\s+(.+)$",
+        r"^(?:search for|look up|look for|search|google)\s+(.+)$",
         text,
     )
 

@@ -13,6 +13,7 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +52,20 @@ class OnlineService:
         self.tts_voice = os.getenv("OPENAI_TTS_VOICE", "onyx").strip()
         self.timeout = int(os.getenv("OPENAI_TIMEOUT", "120"))
 
+        # Bound Gemini calls. Without these the SDK retries 429/5xx on its own
+        # backoff schedule with no ceiling, so a rate-limited request can hang
+        # the caller for a minute or more (the UI just sits in THINKING).
+        self.gemini_timeout = int(os.getenv("GEMINI_TIMEOUT", "45"))
+        self.gemini_retry_attempts = int(os.getenv("GEMINI_RETRY_ATTEMPTS", "2"))
+
         self.last_stt_response_time = 0.0
         self.last_tts_response_time = 0.0
 
         if self._configured():
             try:
                 self.client = genai.Client(
-                    api_key=self.api_key
+                    api_key=self.api_key,
+                    http_options=self._http_options(),
                 )
 
                 logger.info(
@@ -76,6 +84,48 @@ class OnlineService:
             "your-api-key",
             "your_gemini_key_here",
         }
+
+    def _http_options(self):
+        """Bound every Gemini request so a rate limit cannot hang forever."""
+        return types.HttpOptions(
+            timeout=self.gemini_timeout * 1000,
+            retry_options=types.HttpRetryOptions(
+                attempts=self.gemini_retry_attempts,
+                initial_delay=0.5,
+                max_delay=4.0,
+                http_status_codes=[408, 429, 500, 502, 503, 504],
+            ),
+        )
+
+    @staticmethod
+    def _describe_error(exc):
+        """Map a raw SDK exception to (technical message, user-facing line).
+
+        The user-facing line is only returned for errors worth saying out
+        loud (rate limits / timeouts); otherwise it is ``None`` and callers
+        fall back to their own generic wording.
+        """
+        text = str(exc)
+        low = text.lower()
+
+        if (
+            "429" in text
+            or "resource_exhausted" in low
+            or "rate limit" in low
+            or "quota" in low
+        ):
+            return (
+                "Gemini rate limit reached (HTTP 429)",
+                "I'm being rate-limited right now. Give me a few seconds and ask again.",
+            )
+
+        if "timeout" in low or "timed out" in low or "deadline" in low:
+            return (
+                "Gemini request timed out",
+                "That request timed out on me. Try again?",
+            )
+
+        return (text, None)
 
     def get_status(self):
         return {
@@ -107,7 +157,8 @@ class OnlineService:
         if self.client is None:
             try:
                 self.client = genai.Client(
-                    api_key=self.api_key
+                    api_key=self.api_key,
+                    http_options=self._http_options(),
                 )
 
             except Exception as exc:
@@ -219,14 +270,17 @@ class OnlineService:
                 time.perf_counter() - start
             )
 
+            message, friendly = self._describe_error(exc)
+
             logger.exception(
-                "Gemini online AI request failed"
+                "Gemini online AI request failed: %s",
+                message,
             )
 
             return {
                 "status": "error",
-                "message": str(exc),
-                "response": None,
+                "message": message,
+                "response": friendly,
                 "source": "gemini",
                 "response_time": self.last_response_time,
             }

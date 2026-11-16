@@ -96,6 +96,9 @@ class AIEngine:
                         "mode": mode,
                         "source": result.get("source"),
                         "error": result.get("message", "AI request failed"),
+                        # A short user-facing line (e.g. "rate-limited"), when the
+                        # provider supplied one; otherwise None.
+                        "response": result.get("response"),
                         "timestamp": datetime.now().isoformat(),
                         "engine": self.engine_name,
                     }
