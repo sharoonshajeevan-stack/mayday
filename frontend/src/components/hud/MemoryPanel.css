@@ -1,0 +1,459 @@
+/* src/components/hud/MemoryPanel.css */
+
+/* =========================================================
+   MAYDAY MEMORY PANEL
+   ========================================================= */
+
+.memory-panel-root {
+  font-family: "Courier New", "Roboto Mono", monospace;
+
+  pointer-events: none;
+}
+
+/* =========================================================
+   TOGGLE BUTTON
+   ========================================================= */
+
+.memory-toggle {
+  position: fixed;
+
+  right: 32px;
+  top: 130px;
+
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 8px 12px;
+
+  border: 1px solid rgba(0, 191, 255, 0.22);
+
+  border-radius: 6px;
+
+  background: rgba(0, 0, 0, 0.55);
+
+  backdrop-filter: blur(10px);
+
+  color: rgba(255, 255, 255, 0.5);
+
+  font-family: inherit;
+
+  font-size: 8px;
+
+  letter-spacing: 2px;
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  transition:
+    border-color 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.memory-toggle:hover,
+.memory-toggle.open {
+  border-color: rgba(0, 191, 255, 0.6);
+  color: rgba(0, 191, 255, 0.95);
+  box-shadow: 0 0 14px rgba(0, 191, 255, 0.18);
+}
+
+.memory-toggle-icon {
+  font-size: 7px;
+  color: rgba(0, 191, 255, 0.85);
+}
+
+.memory-toggle-count {
+  padding: 1px 6px;
+
+  border-radius: 8px;
+
+  background: rgba(0, 191, 255, 0.16);
+
+  color: rgba(0, 191, 255, 0.9);
+
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+/* =========================================================
+   PANEL
+   ========================================================= */
+
+.memory-panel {
+  position: fixed;
+
+  right: 32px;
+  top: 168px;
+
+  z-index: 10000;
+
+  width: 380px;
+  max-width: calc(100vw - 48px);
+
+  max-height: 68vh;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 12px 14px;
+
+  border: 1px solid rgba(0, 191, 255, 0.22);
+
+  border-radius: 8px;
+
+  background: rgba(0, 0, 0, 0.72);
+
+  backdrop-filter: blur(12px);
+
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.55);
+
+  color: rgba(255, 255, 255, 0.75);
+
+  font-size: 9px;
+
+  pointer-events: auto;
+
+  overflow: hidden;
+}
+
+.memory-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: rgba(0, 191, 255, 0.9);
+
+  font-size: 9px;
+
+  letter-spacing: 3px;
+}
+
+.memory-close {
+  border: none;
+  background: transparent;
+
+  color: rgba(255, 255, 255, 0.5);
+
+  font-size: 16px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.memory-close:hover {
+  color: rgba(255, 80, 80, 0.9);
+}
+
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
+.memory-settings {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding-bottom: 8px;
+
+  border-bottom: 1px solid rgba(0, 191, 255, 0.12);
+}
+
+.memory-switch {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: rgba(255, 255, 255, 0.6);
+
+  cursor: pointer;
+}
+
+.memory-switch input {
+  accent-color: #00bfff;
+}
+
+/* =========================================================
+   TOOLBAR / SEARCH
+   ========================================================= */
+
+.memory-toolbar {
+  display: flex;
+
+  gap: 8px;
+}
+
+.memory-select,
+.memory-search,
+.memory-textarea {
+  padding: 6px 8px;
+
+  border: 1px solid rgba(0, 191, 255, 0.22);
+
+  border-radius: 4px;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  color: rgba(255, 255, 255, 0.85);
+
+  font-family: inherit;
+
+  font-size: 9px;
+
+  outline: none;
+}
+
+.memory-select:focus,
+.memory-search:focus,
+.memory-textarea:focus {
+  border-color: rgba(0, 191, 255, 0.55);
+}
+
+.memory-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* =========================================================
+   ADD FORM
+   ========================================================= */
+
+.memory-add {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.memory-add-row {
+  display: flex;
+
+  gap: 8px;
+}
+
+.memory-add-row .memory-select {
+  flex: 1;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.memory-button {
+  padding: 6px 12px;
+
+  border: 1px solid rgba(0, 191, 255, 0.35);
+
+  border-radius: 4px;
+
+  background: rgba(0, 191, 255, 0.12);
+
+  color: rgba(0, 191, 255, 0.95);
+
+  font-family: inherit;
+
+  font-size: 8px;
+
+  letter-spacing: 2px;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.memory-button:hover:not(:disabled) {
+  background: rgba(0, 191, 255, 0.24);
+  border-color: rgba(0, 191, 255, 0.6);
+}
+
+.memory-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.memory-button.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.memory-button.ghost:hover {
+  border-color: rgba(0, 191, 255, 0.5);
+  color: rgba(0, 191, 255, 0.9);
+}
+
+.memory-button.danger {
+  border-color: rgba(255, 80, 80, 0.35);
+  background: rgba(255, 80, 80, 0.1);
+  color: rgba(255, 120, 120, 0.95);
+}
+
+.memory-button.danger:hover {
+  background: rgba(255, 80, 80, 0.22);
+}
+
+/* =========================================================
+   LIST
+   ========================================================= */
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  overflow-y: auto;
+
+  padding-right: 4px;
+}
+
+.memory-empty {
+  padding: 14px 4px;
+
+  color: rgba(255, 255, 255, 0.35);
+
+  text-align: center;
+}
+
+.memory-item {
+  padding: 8px;
+
+  border: 1px solid rgba(0, 191, 255, 0.14);
+
+  border-radius: 5px;
+
+  background: rgba(0, 191, 255, 0.04);
+}
+
+.memory-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 5px;
+}
+
+.memory-badge {
+  padding: 1px 7px;
+
+  border-radius: 8px;
+
+  background: rgba(0, 191, 255, 0.16);
+
+  color: rgba(0, 191, 255, 0.9);
+
+  font-size: 8px;
+
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
+}
+
+.memory-timestamps {
+  color: rgba(255, 255, 255, 0.3);
+
+  font-size: 8px;
+}
+
+.memory-content {
+  color: rgba(255, 255, 255, 0.82);
+
+  line-height: 1.4;
+
+  word-break: break-word;
+}
+
+.memory-item-actions {
+  display: flex;
+
+  gap: 10px;
+
+  margin-top: 6px;
+}
+
+.memory-link {
+  border: none;
+  background: transparent;
+
+  padding: 0;
+
+  color: rgba(0, 191, 255, 0.8);
+
+  font-family: inherit;
+
+  font-size: 8px;
+
+  letter-spacing: 1px;
+
+  cursor: pointer;
+}
+
+.memory-link:hover {
+  color: rgba(0, 191, 255, 1);
+}
+
+.memory-link.danger {
+  color: rgba(255, 120, 120, 0.8);
+}
+
+.memory-link.danger:hover {
+  color: rgba(255, 120, 120, 1);
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+
+.memory-footer {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding-top: 8px;
+
+  border-top: 1px solid rgba(0, 191, 255, 0.12);
+}
+
+.memory-status {
+  margin-left: auto;
+
+  color: rgba(0, 191, 255, 0.8);
+
+  font-size: 8px;
+
+  letter-spacing: 1px;
+}
+
+/* =========================================================
+   NARROW SCREENS
+   ========================================================= */
+
+@media (max-width: 640px) {
+  .memory-toggle {
+    right: 12px;
+    top: 120px;
+  }
+
+  .memory-panel {
+    right: 12px;
+    top: 156px;
+
+    width: calc(100vw - 24px);
+  }
+}

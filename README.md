@@ -24,10 +24,13 @@ A **futuristic AI desktop assistant** for Windows 11 with voice input/output, sy
 - **Fallback System** - Works even if internet connection fails
 
 ### 💾 **Memory System**
-- **Persistent Storage** - Save all conversations to JSON
-- **Search Functionality** - Find past conversations by keyword
-- **Context Awareness** - AI recalls previous chats
-- **Statistics & Analytics** - Track memory usage and patterns
+- **Rolling Conversation Log** - Recent exchanges saved to JSON (`backend/memory/conversations.json`) so MAYDAY can follow up on "open YouTube" → "play Arijit Singh"
+- **Long-Term Memory (SQLite)** - Preferences, user info, projects, tasks, technical notes and conversation summaries stored locally in `backend/memory/mayday_memory.db`
+- **Smart Extraction** - Only stable, useful facts are kept; duplicates are merged, contradictions update in place, and credentials are never stored
+- **Relevant Retrieval** - Only the few memories relevant to the current request are added to the AI's context (never the whole database), with project isolation so unrelated projects never mix
+- **Memory Panel** - Inspect, search, add, edit, delete, export and clear memories from the HUD, and toggle automatic capture / retrieval / summarisation
+- **Voice Control** - "remember this", "what do you remember about me", "show my project memories", "forget that information", "don't remember this conversation", "clear my memories"
+- **Fully Offline & Private** - SQLite on your machine, no uploads, survives restarts and reboots
 
 ### 🖥️ **System Control**
 - **Launch Applications** - Open any Windows app (Notepad, Chrome, etc.)
@@ -276,6 +279,18 @@ the HUD. The service binds to `127.0.0.1` only.
 - `POST /api/memory/clear-session` - Clear session
 - `POST /api/memory/clear-all` - Clear all memory
 
+### **Long-Term Memory (SQLite)**
+- `GET /api/memory/long-term` - List/search structured memories (`?category=`, `?q=`, `?limit=`, `?offset=`, `?order=`)
+- `POST /api/memory/long-term` - Add a memory manually
+- `GET /api/memory/long-term/<id>` - Read one memory
+- `PUT /api/memory/long-term/<id>` - Edit a memory
+- `DELETE /api/memory/long-term/<id>` - Delete one memory
+- `POST /api/memory/long-term/clear` - Clear all (or given categories) - requires `{"confirm": true}`
+- `GET|POST /api/memory/long-term/settings` - Read/update auto-capture, retrieval and summarisation
+- `POST /api/memory/long-term/recall` - Preview what retrieval would surface for a query
+- `POST /api/memory/long-term/command` - Run a natural-language memory command
+- `GET /api/memory/long-term/export` - Export the whole memory database as JSON
+
 ### **Ollama AI**
 - `GET /api/ollama/status` - Check if Ollama running
 - `GET /api/ollama/models` - List available models
@@ -302,9 +317,16 @@ OLLAMA_HOST=http://localhost:11434
 - **Languages:** English (expandable)
 
 ### **Memory Settings**
-- **Short-term:** Last 50 messages in session
-- **Long-term:** Last 1000 messages persisted
-- **Storage:** `backend/memory/conversations.json`
+- **Short-term:** Last 50 messages in session (rolling conversation log)
+- **Long-term:** Structured memories persisted in SQLite (`backend/memory/mayday_memory.db`)
+- **Categories:** `preference`, `user`, `project`, `conversation`, `task`, `technical`
+- **Config (`.env`):**
+  - `MAYDAY_MEMORY_DB=memory/mayday_memory.db` - database location (relative paths resolve from `backend/`)
+  - `MAYDAY_MEMORY_AUTOCAPTURE=true` - remember useful facts automatically
+  - `MAYDAY_MEMORY_RETRIEVAL=true` - attach relevant memories to AI replies
+  - `MAYDAY_MEMORY_SUMMARIZE=true` - summarise long conversations
+  - `MAYDAY_MEMORY_SUMMARY_AFTER=12` - exchanges before a summary
+- **Privacy:** stored locally, never uploaded; only relevant snippets are sent to the AI provider; credentials are never stored
 
 ---
 
@@ -393,6 +415,9 @@ taskkill /PID <PID> /F
 
 ✅ **Data Protection**
 - Conversations stored as JSON (plaintext)
+- Long-term memory stored in a local SQLite database (never uploaded)
+- Only the memories relevant to a request are sent to the AI provider
+- Credentials, passwords, API keys and tokens are never stored
 - Can export or delete anytime
 - No telemetry or tracking
 - Open-source (audit the code!)

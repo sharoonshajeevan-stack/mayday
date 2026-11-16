@@ -174,6 +174,14 @@ class AIEngine:
         # The personality layer supplies MAYDAY's character; callers may still
         # override the prompt through params.
         system_prompt = params.get("system_prompt") or build_system_prompt()
+
+        # Relevant long-term memories (retrieved by mayday_brain) are appended
+        # to the system prompt so the model knows the user's projects and
+        # preferences without dumping the whole database into the request.
+        memory_context = str(params.get("memory_context") or "").strip()
+        if memory_context:
+            system_prompt = f"{system_prompt}\n\n{memory_context}"
+
         messages = params.get("messages") or self._conversation_messages(command)
 
         if mode == "online":

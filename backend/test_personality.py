@@ -16,6 +16,8 @@ import tempfile
 # touched by the test run.
 _TMP_DIR = tempfile.mkdtemp(prefix="mayday_personality_")
 os.environ["MAYDAY_PERSONALITY_FILE"] = os.path.join(_TMP_DIR, "personality.json")
+# Keep the test run out of the real long-term memory database.
+os.environ["MAYDAY_MEMORY_DB"] = os.path.join(_TMP_DIR, "memory.db")
 
 import personality  # noqa: E402
 import command_router  # noqa: E402

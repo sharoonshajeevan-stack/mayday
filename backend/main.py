@@ -17,6 +17,7 @@ from speech_to_text import start_recording, stop_recording, get_stt_status, get_
 from system_commands import execute_shutdown, execute_restart, execute_launch_app, execute_open_url, execute_get_processes, execute_get_system_info, set_command_permission, get_command_permissions
 from text_to_speech import speak_text_async, stop_speaking, set_voice, set_speech_rate, set_volume, get_voices, get_tts_status, preload_tts_model
 from memory_system import add_memory, get_recent_memories, search_memories, get_context, get_memory_status, get_memory_stats, clear_session, clear_all, export_all_memories
+from memory_manager import CATEGORIES, handle_memory_command, memory_manager
 from ollama_service import get_ollama_status, get_ollama_models, generate_ollama_response, chat_with_ollama, set_ollama_model
 from voice_mode import get_voice_mode_status, set_voice_mode
 from online_service import get_online_status
@@ -99,6 +100,23 @@ def _remember_conversation(user_input, ai_response, tags=None):
         )
     except Exception as exc:  # noqa: BLE001 - memory is best-effort
         logger.warning("Could not record conversation memory: %s", exc)
+
+
+def _observe_long_term_memory(user_input, ai_response):
+    """Extract and persist long-term facts from an exchange (best effort)."""
+    try:
+        memory_manager.observe(user_input, ai_response)
+    except Exception as exc:  # noqa: BLE001 - memory is best-effort
+        logger.warning("Could not update long-term memory: %s", exc)
+
+
+def _memory_context(text):
+    """Return a compact block of relevant long-term memories (best effort)."""
+    try:
+        return memory_manager.retrieve_context(text) or ""
+    except Exception as exc:  # noqa: BLE001 - memory is best-effort
+        logger.warning("Could not retrieve long-term memory: %s", exc)
+        return ""
 
 
 def apply_personality_voice():
@@ -426,49 +444,67 @@ def voice_process():
                 "message": "No voice command/transcript available"
             }), 400
 
-        # Deterministic actions first, so a spoken command behaves exactly like
-        # a typed one and never bypasses the command router.
-        action = route_command(text)
+        # 0) Explicit memory commands act on the persistent database.
+        try:
+            memory_reply = handle_memory_command(text)
+        except Exception as exc:  # noqa: BLE001 - never break the reply path
+            logger.error(f"Memory command failed: {exc}")
+            memory_reply = None
 
-        if action:
-            formatted = format_action_result(action)
-            commentary = comment_on_action(
-                action,
-                text,
-                base_message=formatted.get("response") or "Command completed.",
-            )
-            response_text = commentary["response"]
-            spoken_text = commentary["spoken"]
-            ai_result = {
-                "status": "success",
-                "command": text,
-                "response": response_text,
-                "spoken": spoken_text,
-                "source": "system",
-                "kind": commentary["kind"],
-                "timestamp": datetime.now().isoformat(),
-            }
+        if memory_reply:
+            memory_manager.note_exchange(text, memory_reply.get("response") or "")
+            ai_result = memory_reply
+            response_text = memory_reply.get("response") or ""
+            spoken_text = memory_reply.get("spoken") or response_text
         else:
-            ai_result = process_ai_command(
-                text,
-                data.get('params') or {}
-            )
+            # Deterministic actions first, so a spoken command behaves exactly
+            # like a typed one and never bypasses the command router.
+            action = route_command(text)
 
-            if ai_result.get('status') != 'success':
-                return jsonify({
-                    "status": "error",
-                    "stage": "ai",
-                    "message": ai_result.get("error", "AI processing failed"),
-                    "ai": ai_result,
-                    "timestamp": datetime.now().isoformat()
-                }), 400
+            if action:
+                formatted = format_action_result(action)
+                commentary = comment_on_action(
+                    action,
+                    text,
+                    base_message=formatted.get("response") or "Command completed.",
+                )
+                response_text = commentary["response"]
+                spoken_text = commentary["spoken"]
+                ai_result = {
+                    "status": "success",
+                    "command": text,
+                    "response": response_text,
+                    "spoken": spoken_text,
+                    "source": "system",
+                    "kind": commentary["kind"],
+                    "timestamp": datetime.now().isoformat(),
+                }
+            else:
+                params = dict(data.get('params') or {})
 
-            response_text = stringify_response(ai_result.get("response"))
-            spoken_text = stringify_response(
-                ai_result.get("spoken") or ai_result.get("response")
-            )
+                # Attach the few long-term memories relevant to this request.
+                context = _memory_context(text)
+                if context:
+                    params["memory_context"] = context
+
+                ai_result = process_ai_command(text, params)
+
+                if ai_result.get('status') != 'success':
+                    return jsonify({
+                        "status": "error",
+                        "stage": "ai",
+                        "message": ai_result.get("error", "AI processing failed"),
+                        "ai": ai_result,
+                        "timestamp": datetime.now().isoformat()
+                    }), 400
+
+                response_text = stringify_response(ai_result.get("response"))
+                spoken_text = stringify_response(
+                    ai_result.get("spoken") or ai_result.get("response")
+                )
 
         _remember_conversation(text, response_text)
+        _observe_long_term_memory(text, response_text)
 
         tts_result = speak_text_async(spoken_text or response_text)
 
@@ -752,6 +788,26 @@ def process_command():
 
         logger.info(f"Command received: {command}")
 
+        # 0) Explicit memory commands ("remember this", "show my project
+        #    memories", "forget that", ...) act on the persistent database.
+        try:
+            memory_reply = handle_memory_command(command)
+        except Exception as exc:  # noqa: BLE001 - never break the reply path
+            logger.error(f"Memory command failed: {exc}")
+            memory_reply = None
+
+        if memory_reply:
+            memory_manager.note_exchange(command, memory_reply.get("response") or "")
+            _remember_conversation(
+                command,
+                memory_reply.get("response") or "",
+                tags=["memory"],
+            )
+            memory_reply["command"] = command
+            memory_reply["state"] = "RESPONDING"
+            memory_reply["timestamp"] = datetime.now().isoformat()
+            return jsonify(memory_reply), 200
+
         # 1) Deterministic system actions first.
         action = route_command(command)
 
@@ -784,6 +840,7 @@ def process_command():
                 commentary["response"],
                 tags=["action", commentary["kind"]],
             )
+            _observe_long_term_memory(command, commentary["response"])
 
             logger.info(
                 "Command routed to system action (%s): %s",
@@ -792,11 +849,21 @@ def process_command():
             )
             return jsonify(formatted), 200
 
-        # 2) Assistant / AI engine.
+        # 2) Assistant / AI engine, with the few relevant long-term memories
+        #    attached so MAYDAY remembers the user's projects and preferences.
+        context = _memory_context(command)
+        if context:
+            params = dict(params or {})
+            params["memory_context"] = context
+
         result = process_ai_command(command, params)
 
         if result.get("status") != "success":
             error_text = result.get("error", "AI request failed.")
+
+            # Still learn from what the *user* said, even if the model failed.
+            _observe_long_term_memory(command, error_text)
+
             return jsonify({
                 "status": "error",
                 "command": command,
@@ -813,6 +880,7 @@ def process_command():
         )
 
         _remember_conversation(command, response_text)
+        _observe_long_term_memory(command, response_text)
 
         return jsonify({
             "status": "success",
@@ -1595,6 +1663,300 @@ def memory_clear_all():
             "status": "error",
             "message": str(e)
         }), 400
+
+
+# ============================================================================
+# LONG-TERM MEMORY ENDPOINTS (SQLite)
+# ============================================================================
+# Structured, persistent memories: preferences, user info, projects, tasks,
+# technical notes and conversation summaries. The browser Memory panel talks
+# to these routes. Everything stays local (backend/memory/mayday_memory.db);
+# only the relevant snippets are ever sent to the AI provider.
+
+@app.route('/api/memory/long-term', methods=['GET'])
+def long_term_list():
+    """
+    List or search long-term memories.
+
+    Query: ?category=project&q=browser&limit=200&offset=0&order=updated
+    """
+    try:
+        category = request.args.get('category') or None
+        if category and category not in CATEGORIES:
+            category = None
+
+        query = request.args.get('q') or None
+        limit = int(request.args.get('limit', 200))
+        offset = int(request.args.get('offset', 0))
+        order = request.args.get('order', 'updated')
+
+        memories = memory_manager.list(
+            category=category,
+            limit=limit,
+            offset=offset,
+            order=order,
+            query=query,
+        )
+
+        return jsonify({
+            "status": "success",
+            "memories": memories,
+            "count": len(memories),
+            "total": memory_manager.store.count(),
+            "categories": CATEGORIES,
+            "settings": memory_manager.get_settings(),
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error listing long-term memories: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term', methods=['POST'])
+def long_term_create():
+    """Create a memory manually.
+
+    Body: {"content": "...", "category": "project", "tags": [...]}
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        content = str(data.get('content', '')).strip()
+
+        if not content:
+            return jsonify({
+                "status": "error",
+                "message": "content is required",
+            }), 400
+
+        category = data.get('category')
+        if category and category not in CATEGORIES:
+            return jsonify({
+                "status": "error",
+                "message": f"unknown category: {category}",
+            }), 400
+
+        result = memory_manager.remember(
+            content,
+            category=category,
+            key=data.get('key'),
+            subject=data.get('subject'),
+            confidence=data.get('confidence', 0.9),
+            importance=data.get('importance', 7),
+            source="user_edit",
+            tags=data.get('tags') or [],
+        )
+
+        if result.get("status") == "blocked":
+            return jsonify({
+                "status": "error",
+                "message": "That looks like a credential, so I did not store it.",
+            }), 400
+
+        return jsonify({
+            "status": "success",
+            "result": result,
+            "memory": result.get("memory"),
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error creating long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/<int:memory_id>', methods=['GET'])
+def long_term_get(memory_id):
+    try:
+        memory = memory_manager.get(memory_id)
+        if not memory:
+            return jsonify({"status": "error", "message": "Memory not found"}), 404
+        return jsonify({"status": "success", "memory": memory}), 200
+    except Exception as e:
+        logger.error(f"Error fetching long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/<int:memory_id>', methods=['PUT', 'PATCH'])
+def long_term_update(memory_id):
+    """Edit a memory: {"content": "...", "category": "...", "importance": 9}"""
+    try:
+        if memory_manager.get(memory_id) is None:
+            return jsonify({"status": "error", "message": "Memory not found"}), 404
+
+        data = request.get_json(silent=True) or {}
+        fields = {}
+
+        if 'content' in data:
+            content = str(data.get('content') or '').strip()
+            if not content:
+                return jsonify({
+                    "status": "error",
+                    "message": "content cannot be empty",
+                }), 400
+            fields['content'] = content
+        if 'summary' in data:
+            fields['summary'] = str(data.get('summary') or '')
+        if 'category' in data:
+            category = data.get('category')
+            if category not in CATEGORIES:
+                return jsonify({
+                    "status": "error",
+                    "message": f"unknown category: {category}",
+                }), 400
+            fields['category'] = category
+        if 'tags' in data:
+            fields['tags'] = list(data.get('tags') or [])
+        if 'subject' in data:
+            fields['subject'] = data.get('subject')
+        if 'key' in data:
+            fields['key'] = data.get('key')
+        if 'confidence' in data:
+            fields['confidence'] = data.get('confidence')
+        if 'importance' in data:
+            fields['importance'] = data.get('importance')
+        if 'verified' in data:
+            fields['verified'] = 1 if data.get('verified') else 0
+        if 'pinned' in data:
+            fields['pinned'] = 1 if data.get('pinned') else 0
+
+        memory = memory_manager.update_memory(memory_id, **fields)
+        return jsonify({"status": "success", "memory": memory}), 200
+
+    except Exception as e:
+        logger.error(f"Error updating long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/<int:memory_id>', methods=['DELETE'])
+def long_term_delete(memory_id):
+    try:
+        deleted = memory_manager.delete_memory(memory_id)
+        if not deleted:
+            return jsonify({"status": "error", "message": "Memory not found"}), 404
+        return jsonify({
+            "status": "success",
+            "deleted": memory_id,
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error deleting long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/clear', methods=['POST'])
+def long_term_clear():
+    """Clear all memories, or one category. Requires {"confirm": true}."""
+    try:
+        data = request.get_json(silent=True) or {}
+
+        if not data.get('confirm'):
+            return jsonify({
+                "status": "error",
+                "message": "Confirmation required: send {\"confirm\": true}.",
+            }), 400
+
+        categories = data.get('categories') or None
+        if categories:
+            categories = [c for c in categories if c in CATEGORIES] or None
+
+        removed = memory_manager.clear(categories)
+        logger.warning("Long-term memory cleared (%s rows)", removed)
+
+        return jsonify({
+            "status": "success",
+            "removed": removed,
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error clearing long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/settings', methods=['GET'])
+def long_term_settings_get():
+    try:
+        return jsonify({
+            "status": "success",
+            "settings": memory_manager.get_settings(),
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error reading memory settings: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/settings', methods=['POST'])
+def long_term_settings_set():
+    """Body: {"auto_capture": bool, "retrieval_enabled": bool, "summarize_enabled": bool}"""
+    try:
+        data = request.get_json(silent=True) or {}
+        settings = memory_manager.update_settings(data)
+        return jsonify({
+            "status": "success",
+            "settings": settings,
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating memory settings: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/recall', methods=['POST'])
+def long_term_recall():
+    """Preview what retrieval would surface: {"query": "...", "limit": 6}"""
+    try:
+        data = request.get_json(silent=True) or {}
+        query = str(data.get('query') or '').strip()
+        limit = int(data.get('limit', 6))
+
+        memories = memory_manager.recall(query, limit=limit)
+        return jsonify({
+            "status": "success",
+            "query": query,
+            "memories": memories,
+            "count": len(memories),
+            "timestamp": datetime.now().isoformat(),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error recalling memories: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/command', methods=['POST'])
+def long_term_command():
+    """Run a natural-language memory command against the database."""
+    try:
+        data = request.get_json(silent=True) or {}
+        command = str(data.get('command') or '').strip()
+
+        if not command:
+            return jsonify({"status": "error", "message": "command is required"}), 400
+
+        reply = handle_memory_command(command)
+        if not reply:
+            return jsonify({
+                "status": "error",
+                "message": "Not a recognised memory command.",
+            }), 400
+
+        return jsonify(reply), 200
+
+    except Exception as e:
+        logger.error(f"Error handling memory command: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/memory/long-term/export', methods=['GET'])
+def long_term_export():
+    """Export the whole long-term memory database as JSON."""
+    try:
+        return jsonify(memory_manager.export()), 200
+    except Exception as e:
+        logger.error(f"Error exporting long-term memory: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 
 # ============================================================================

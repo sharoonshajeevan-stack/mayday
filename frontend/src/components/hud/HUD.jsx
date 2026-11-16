@@ -16,6 +16,7 @@ import ConversationFlow from "./ConversationFlow";
 import StateTransition from "./StateTransition";
 import ResponseStateController from "./ResponseStateController";
 import PersonalitySettings from "./PersonalitySettings";
+import MemoryPanel from "./MemoryPanel";
 import RealtimeVoice from "./RealtimeVoice";
 
 import "./HUD.css";
@@ -64,6 +65,8 @@ export default function HUD() {
       <ConnectionStatus />
 
       <PersonalitySettings />
+
+      <MemoryPanel />
 
       {/* State controllers */}
 

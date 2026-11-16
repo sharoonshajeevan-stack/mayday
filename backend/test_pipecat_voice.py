@@ -17,9 +17,17 @@ Nothing here launches the app, opens the microphone or plays audio.
 import asyncio
 import os
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Keep the test run out of the real long-term memory database: the brain's
+# tests exercise memory extraction, and we never want that in production data.
+os.environ.setdefault(
+    "MAYDAY_MEMORY_DB",
+    os.path.join(tempfile.mkdtemp(prefix="mayday_mem_pipecat_"), "memory.db"),
+)
 
 import numpy as np  # noqa: E402
 
@@ -365,20 +373,27 @@ def test_brain():
 
         # 2. No action -> the existing AI engine answers.
         mayday_brain.route_command = lambda text: None
-        mayday_brain.process_ai_command = lambda text: {
-            "status": "success",
-            "response": "A detailed answer for the screen.",
-            "spoken": "A short answer.",
-            "source": "online",
-            "mode": "online",
-        }
+        captured_params = {}
+
+        def fake_ai(text, params=None):
+            captured_params.update(params or {})
+            return {
+                "status": "success",
+                "response": "A detailed answer for the screen.",
+                "spoken": "A short answer.",
+                "source": "online",
+                "mode": "online",
+            }
+
+        mayday_brain.process_ai_command = fake_ai
         result = mayday_brain.handle_utterance("what is the capital of France")
         check("ai fallback -> online source", result["source"] == "online")
         check("ai fallback keeps full text", "detailed" in result["response"])
         check("ai fallback uses short speech", result["spoken"] == "A short answer.")
+        check("ai fallback receives a params dict", isinstance(captured_params, dict))
 
         # 3. AI failure -> error status, never an exception.
-        mayday_brain.process_ai_command = lambda text: {
+        mayday_brain.process_ai_command = lambda text, params=None: {
             "status": "error",
             "error": "no key",
         }
@@ -388,7 +403,7 @@ def test_brain():
 
         # 3b. A provider error that carries a user-facing line (e.g. a Gemini
         #     429) is surfaced verbatim instead of a generic apology.
-        mayday_brain.process_ai_command = lambda text: {
+        mayday_brain.process_ai_command = lambda text, params=None: {
             "status": "error",
             "error": "Gemini rate limit reached (HTTP 429)",
             "response": "I'm being rate-limited right now.",
@@ -405,6 +420,16 @@ def test_brain():
             result["spoken"] == "I'm being rate-limited right now.",
             result["spoken"],
         )
+
+        # 3c. A memory command is handled by the persistent memory layer and
+        #     never reaches the AI engine.
+        def explode(text, params=None):
+            raise AssertionError("AI engine should not run for a memory command")
+
+        mayday_brain.process_ai_command = explode
+        result = mayday_brain.handle_utterance("show my project memories")
+        check("memory command -> memory source", result["source"] == "memory")
+        check("memory command -> success", result["status"] == "success")
 
         # 4. Empty input is rejected.
         result = mayday_brain.handle_utterance("   ")

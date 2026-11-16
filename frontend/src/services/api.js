@@ -811,6 +811,226 @@ export const clearAllMemory = async () => {
   }
 };
 // ============================================================================
+// LONG-TERM MEMORY FUNCTIONS (SQLite, persistent)
+// ============================================================================
+
+const longTermQuery = (options = {}) => {
+  const params = new URLSearchParams();
+
+  if (options.category) params.set('category', options.category);
+  if (options.q) params.set('q', options.q);
+  if (options.order) params.set('order', options.order);
+  if (options.limit != null) params.set('limit', String(options.limit));
+  if (options.offset != null) params.set('offset', String(options.offset));
+
+  const suffix = params.toString();
+  return suffix ? `?${suffix}` : '';
+};
+
+export const getLongTermMemories = async (options = {}) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/memory/long-term${longTermQuery(options)}`,
+      {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory load failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const createLongTermMemory = async (payload) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory save failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateLongTermMemory = async (id, patch) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory update failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const deleteLongTermMemory = async (id) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory delete failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const clearLongTermMemories = async (categories = null) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true, categories }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory clear failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getMemorySettings = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/settings`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Memory settings load failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateMemorySettings = async (patch) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Memory settings save failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const recallMemories = async (query, limit = 6) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/recall`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Memory recall failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const runMemoryCommand = async (command) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Memory command failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const exportLongTermMemories = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/memory/long-term/export`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Long-term memory export failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
 // PERSONALITY SETTINGS FUNCTIONS
 // ============================================================================
 

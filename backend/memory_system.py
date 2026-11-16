@@ -2,6 +2,19 @@
 # MEMORY SYSTEM - Store and recall conversations
 # File: D:\MAYDAY-OS\backend\memory_system.py
 # Purpose: Persistent memory for conversations and context
+#
+# NOTE ON THE TWO MEMORY LAYERS
+# -----------------------------
+# This module is the *rolling conversation log*: the raw last-N exchanges that
+# let MAYDAY follow up on "open YouTube" then "play Arijit Singh". It is stored
+# as JSON in backend/memory/conversations.json.
+#
+# The *structured long-term memory* (preferences, user info, projects, tasks,
+# technical notes, conversation summaries) lives in the `memory_manager`
+# package, backed by SQLite at backend/memory/mayday_memory.db. That package is
+# the single source of truth for long-term memory; this module deliberately
+# does not duplicate it. The long-term API is re-exported at the bottom of this
+# file so existing imports keep working.
 # ============================================================================
 
 import json
@@ -308,3 +321,39 @@ def clear_all():
 def export_all_memories():
     """Export all memories"""
     return memory_system.export_memories()
+
+
+# ============================================================================
+# LONG-TERM MEMORY (structured, SQLite) - re-exported for convenience
+# ============================================================================
+# These delegate to the memory_manager package, which owns the SQLite database.
+# Importing them from here keeps `memory_system` the single memory entry point
+# without duplicating any storage logic.
+
+from memory_manager import (  # noqa: E402  (import after the JSON layer)
+    handle_memory_command,
+    memory_manager,
+    recall,
+    remember,
+    retrieve_context,
+)
+
+
+def observe_conversation(user_input, ai_response=""):
+    """Auto-extract long-term facts from an exchange (best effort)."""
+    return memory_manager.observe(user_input, ai_response)
+
+
+def long_term_settings():
+    """Return the long-term memory settings."""
+    return memory_manager.get_settings()
+
+
+def update_long_term_settings(patch):
+    """Update the long-term memory settings (auto capture / retrieval)."""
+    return memory_manager.update_settings(patch)
+
+
+def long_term_stats():
+    """Return long-term memory statistics."""
+    return memory_manager.stats()
